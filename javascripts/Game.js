@@ -34,7 +34,9 @@ var Game = Backbone.View.extend({
       'A',
       'S',
       'D',
-      'F'
+      'F',
+      'G',
+      'H'
     ]
   },
 
