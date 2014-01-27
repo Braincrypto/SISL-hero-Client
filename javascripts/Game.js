@@ -27,6 +27,7 @@ var Game = Backbone.View.extend({
     interval: 1000/30,
     minTimeBetween: 750,
     maxTimeBetween: 1250,
+    timeUnit: 1000,
     accuracy: 250,
     accuracyOffset: 100,
     score: 2500,
@@ -44,16 +45,27 @@ var Game = Backbone.View.extend({
   },
 
   initialize: function () {
+    var that = this;
     this.data = [];
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
     this.onInterval = this.onInterval.bind(this);
     this.$el.html(this.template);
-    this.setup();
-    this.build();
-    this.attach();
-    this.render();
+    
+    console.log("loading config");
+    this.patternkeys = [];
+    this.patterntime = [];
+    this.bubbleIndex = 0;
+    this.responses = [];
+
+    this.loadConfig(function () {
+      that.setup();
+      that.build();
+      that.attach();
+      that.render();
+    });
+    console.log(this.options.keys);
   },
 
   setup: function () {
@@ -86,7 +98,52 @@ var Game = Backbone.View.extend({
       .range([1.00, 25]);
 
     this.colorScale = d3.scale.category10().domain([0, this.options.keys.length-1]);
-  },
+
+ },
+
+  loadConfig: function(process) {
+    var that = this;
+    
+    // perform sync call with ajax
+    jQuery.ajaxSetup({async:false});
+    
+    // get config file
+    jQuery.get('http://localhost:8000/config.txt', function(data) {
+      var datasplit = data.split("\n");
+      var table = new Array();
+      for(i = 0; i < datasplit.length; i++) {
+        var linedata = datasplit[i].split(/\s+/g);
+
+        // load config
+        // number of keys
+        if (linedata[0] === "numkeys") {
+          console.log("Loading numkeys: " + linedata[1]);
+          that.options.keys = that.options.keys.slice(0, parseInt(linedata[1]));
+        }
+        if (linedata[0] === "monitorrefresh") {
+          console.log("Loading monitorrefresh: " + linedata[1]);
+          that.options.interval = parseInt(linedata[1]);
+        }
+        if (linedata[0] === "pattern") {
+          console.log("Loading pattern");
+          var rawdata = linedata.slice(1, linedata.length),
+              patternkeys = [],
+              patterntime = [];
+          
+          for(i = 0; i < rawdata.length; i += 2) {
+            patternkeys.push(rawdata[i+1]-1);
+            patterntime.push(rawdata[i]);
+          }
+          that.patternkeys = patternkeys.map( function( num )
+            { return parseInt( num, 10 ) }
+          );
+          that.patterntime = patterntime.map(parseFloat);
+        }
+      }
+      process();
+    });
+
+    },
 
   start: function () {
     if (!this.started) {
@@ -161,6 +218,7 @@ var Game = Backbone.View.extend({
       bestBubble = false,
       highScore,
       score,
+      offset,
       diff,
       bubble;
     if (this.options.keys.indexOf(key) !== -1) {
@@ -170,7 +228,8 @@ var Game = Backbone.View.extend({
           break;
         }
         if (!bubble.beenHit && bubble.key === key && bubble.timeStamp >= low && bubble.timeStamp <= high) {
-          diff = Math.abs(current - bubble.timeStamp);
+          offset = current - bubble.timeStamp;
+          diff = Math.abs(offset);
           score = this.scoreScale(Math.abs(diff));
           if (!bestBubble || score > highScore) {
             highScore = score;
@@ -182,6 +241,7 @@ var Game = Backbone.View.extend({
     if (bestBubble) {
       this.trigger('score', {score: highScore, bubble: bestBubble});
       bestBubble.beenHit = true;
+      bestBubble.offset = offset;
     }
   },
 
@@ -418,7 +478,7 @@ var Game = Backbone.View.extend({
       .domain([this.date, new Date(this.date.getTime() + this.options.timeToShow)]);
   },
 
-  addMoreBubbles: function () {
+  oldAddMoreBubbles: function () {
     var last = _.last(this.data),
       random = Math.random(),
       difference = this.options.maxTimeBetween - this.options.minTimeBetween,
@@ -426,11 +486,13 @@ var Game = Backbone.View.extend({
       bubbleDifference,
       bubble;
     if (!last) {
-      bubble = this.createBubble(date);
+      var i = Math.floor(Math.random() * this.options.keys.length);
+      bubble = this.createBubble(i, date);
     } else {
       bubbleDifference = date.getTime() - last.date.getTime();
       if (bubbleDifference > this.options.maxTimeBetween || (bubbleDifference > (difference * random)) && bubbleDifference > this.options.minTimeBetween) {
-        bubble = this.createBubble(date);
+        var i = Math.floor(Math.random() * this.options.keys.length);
+        bubble = this.createBubble(i, date);
       }
     }
     if (bubble) {
@@ -438,21 +500,51 @@ var Game = Backbone.View.extend({
     }
   },
 
-  createBubble: function (date) {
-    var i = Math.floor(Math.random() * this.options.keys.length);
+  addMoreBubbles: function () {
+    var last = _.last(this.data),
+      date = new Date(new Date().getTime() + this.options.timeToShow),
+      bubble;
+    
+    if (!last) {
+      var i = this.patternkeys[this.bubbleIndex];
+      bubble = this.createBubble(this.bubbleIndex, i, date);
+      console.log("Creating first bubble");
+    } else {
+      bubbleDifference = date.getTime() - last.date.getTime();
+      if (bubbleDifference > this.patterntime[this.bubbleIndex] * this.options.timeUnit) {
+        var i = this.patternkeys[this.bubbleIndex];
+        bubble = this.createBubble(this.bubbleIndex, i, date);
+      }
+    }
+    if (bubble) {
+      this.data.push(bubble);
+      this.bubbleIndex++;
+    }
+  },
+  createBubble: function (id, i, date) {
     return {
       date: date,
       timeStamp: date.getTime(),
       i: i,
       key: this.options.keys[i],
       color: this.colorScale(i),
-      id: _.uniqueId('bubble')
+      id: id
     }
   },
 
   cleanData: function () {
     this.data = _.filter(this.data, function (o) {
-      return (o.date.getTime() + 1000) > this.date.getTime();
+      var out = (o.date.getTime() + 1000) > this.date.getTime();
+      if(!out) {
+        this.responses.push({
+          id: o.id,
+          timestamp: o.timestamp,
+          beenHit: o.beenHit,
+          offset: o.beenHit ? o.offset: null,
+        });
+        console.log(JSON.stringify(this.responses[this.responses.length-1]));
+      }
+      return out;
     }, this);
   },
 
