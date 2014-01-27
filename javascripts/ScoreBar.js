@@ -1,6 +1,6 @@
 var ScoreBar = Backbone.View.extend({
 
-  template: 'JavaScript Hero<div class="score"></div><div class="hits"></div>',
+  template: 'SISL Hero<div class="score"></div><div class="hits"></div>',
 
   scoreTemplate: _.template('Score: <%= model.get("score") %>'),
   hitsTemplate: _.template('Hits: <%= model.get("hits") %>'),

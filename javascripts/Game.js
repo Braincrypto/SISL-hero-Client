@@ -21,6 +21,7 @@ var Game = Backbone.View.extend({
     '<div class="paused-text-container"><div class="paused-text">~ PAUSED ~</div></div>',
 
   options: {
+    configURL: 'config.txt',
     numMarkers: 12,
     maxBubbleSize: 100,
     timeToShow: 6000, // 12 seconds
@@ -108,7 +109,7 @@ var Game = Backbone.View.extend({
     jQuery.ajaxSetup({async:false});
     
     // get config file
-    jQuery.get('http://localhost:8000/config.txt', function(data) {
+    jQuery.get(this.options.configURL, function(data) {
       var datasplit = data.split("\n");
       var table = new Array();
       for(i = 0; i < datasplit.length; i++) {
