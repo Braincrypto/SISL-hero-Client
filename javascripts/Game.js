@@ -22,16 +22,19 @@ var Game = Backbone.View.extend({
 
   options: {
     configURL: 'config.txt',
-    numMarkers: 12,
-    maxBubbleSize: 100,
-    timeToShow: 6000, // 12 seconds
-    interval: 1000/30,
-    minTimeBetween: 750,
-    maxTimeBetween: 1250,
-    timeUnit: 1000,
-    accuracy: 250,
-    accuracyOffset: 100,
-    score: 2500,
+    //endPoint: 'stanford.edu/~ehrhardn/cgi-bin/server.cgi/',
+    endPoint: '/~ehrhardn/cgi-bin/server.cgi/',
+
+    // ### Bubbles
+    // - color (init later)
+    bubbleColor: [],
+
+    // - letter
+    showLetters: false,
+    letterColor: 'white',
+    letterSize: 1.0,
+
+    // ### Keyboard
     keys: [
       'A',
       'S',
@@ -39,7 +42,24 @@ var Game = Backbone.View.extend({
       'F',
       'G',
       'H'
-    ]
+    ],
+    
+    // ### Patterns
+    patternkeys: [],
+    patterntime: [],
+    
+    adaptiveSpeed: false,
+    numMarkers: 12,
+    maxBubbleSize: 100,
+    timeToShow: 6000, // 12 seconds
+    interval: 65,//1000/30,
+    minTimeBetween: 750,
+    maxTimeBetween: 1250,
+    timeUnit: 1000,
+    accuracy: 250,
+    accuracyOffset: 100,
+    score: 2500,
+
   },
 
   events: {
@@ -55,18 +75,107 @@ var Game = Backbone.View.extend({
     this.$el.html(this.template);
     
     console.log("loading config");
-    this.patternkeys = [];
-    this.patterntime = [];
     this.bubbleIndex = 0;
     this.responses = [];
 
-    this.loadConfig(function () {
+    this.loadParam(function () {
       that.setup();
       that.build();
       that.attach();
       that.render();
     });
-    console.log(this.options.keys);
+  },
+
+  loadParam: function(process) {
+    var that = this;
+    console.log(that);
+    
+    // perform sync call with ajax
+    jQuery.ajaxSetup({async:false});
+    
+    // get config file
+    jQuery.getJSON(this.options.endPoint + 'user/' + 'test' + '/challenge', function(data) {
+      //console.log("Test: " + toString(data));
+      console.log(data);
+      $.extend(that.options, data);
+      console.log(that.options);
+    })
+    process();
+  },  
+
+  loadConfig: function(process) {
+    var that = this;
+    
+    // perform sync call with ajax
+    jQuery.ajaxSetup({async:false});
+    
+    // get config file
+    jQuery.get(this.options.configURL, function(data) {
+      var datasplit = data.split("\n");
+      var table = new Array();
+      for(i = 0; i < datasplit.length; i++) {
+        var linedata = datasplit[i].split(/\s+/g);
+
+        if (linedata[0][0] === "#")
+          continue;
+
+        // load config
+        // number of keys
+        if (linedata[0] === "numkeys") {
+          console.log("Loading numkeys: " + linedata[1]);
+          that.options.keys = that.options.keys.slice(0, parseInt(linedata[1]));
+        }
+        if (linedata[0] === "keylist") {
+          console.log("Loading keys: " + linedata);
+          that.options.keys = linedata.slice(1, linedata.length);
+          console.log(that.options.keys);
+        }
+        if (linedata[0] === "bubblecolor") {
+          console.log("Loading bubble colors: " + linedata);
+          that.options.bubbleColor = linedata.slice(1, linedata.length);
+        }        
+        if (linedata[0] === "monitorrefresh") {
+          console.log("Loading monitorrefresh: " + linedata[1]);
+          that.options.interval = parseInt(linedata[1]);
+        }
+        if (linedata[0] === "showletters") {
+          console.log("Loading show letters: " + linedata[1]);
+          that.options.showLetters = linedata[1] > 0;
+        }
+        if (linedata[0] === "lettercolor") {
+          console.log("Loading letter colors: " + linedata[1]);
+          that.options.letterColor = linedata[1];
+        }
+        if (linedata[0] === "lettersize") {
+          console.log("Loading letter size: " + linedata[1]);
+          that.options.letterSize = linedata[1];
+        }
+        if (linedata[0] === "bubblecolor") {
+          console.log("Loading bubble colors: " + linedata[1]);
+          that.options.bubbleColor = linedata.slice(1, linedata.length);
+        }
+        if (linedata[0] === "adaptivespeed") {
+          console.log("Loading adaptive speed: " + linedata[1]);
+          that.options.adaptiveSpeed = linedata[1] > 0;
+        }
+        if (linedata[0] === "pattern") {
+          console.log("Loading pattern");
+          var rawdata = linedata.slice(1, linedata.length),
+             patternkeys = [],
+             patterntime = [];
+          
+          for(i = 0; i < rawdata.length; i += 2) {
+           patternkeys.push(rawdata[i+1]-1);
+           patterntime.push(rawdata[i]);
+          }
+          that.options.patternkeys = patternkeys.map( function( num )
+            { return parseInt( num, 10 ) }
+          );
+          that.options.patterntime = patterntime.map(parseFloat);
+        }
+      }
+      process();
+    });
   },
 
   setup: function () {
@@ -98,53 +207,9 @@ var Game = Backbone.View.extend({
       .domain([-0.01, 1.0])
       .range([1.00, 25]);
 
-    this.colorScale = d3.scale.category10().domain([0, this.options.keys.length-1]);
-
+    if (this.options.bubbleColor.length === 0)
+      this.options.bubbleColor = d3.scale.category10().range().slice(0, this.options.keys.length);
  },
-
-  loadConfig: function(process) {
-    var that = this;
-    
-    // perform sync call with ajax
-    jQuery.ajaxSetup({async:false});
-    
-    // get config file
-    jQuery.get(this.options.configURL, function(data) {
-      var datasplit = data.split("\n");
-      var table = new Array();
-      for(i = 0; i < datasplit.length; i++) {
-        var linedata = datasplit[i].split(/\s+/g);
-
-        // load config
-        // number of keys
-        if (linedata[0] === "numkeys") {
-          console.log("Loading numkeys: " + linedata[1]);
-          that.options.keys = that.options.keys.slice(0, parseInt(linedata[1]));
-        }
-        if (linedata[0] === "monitorrefresh") {
-          console.log("Loading monitorrefresh: " + linedata[1]);
-          that.options.interval = parseInt(linedata[1]);
-        }
-        if (linedata[0] === "pattern") {
-          console.log("Loading pattern");
-          var rawdata = linedata.slice(1, linedata.length),
-              patternkeys = [],
-              patterntime = [];
-          
-          for(i = 0; i < rawdata.length; i += 2) {
-            patternkeys.push(rawdata[i+1]-1);
-            patterntime.push(rawdata[i]);
-          }
-          that.patternkeys = patternkeys.map( function( num )
-            { return parseInt( num, 10 ) }
-          );
-          that.patterntime = patterntime.map(parseFloat);
-        }
-      }
-      process();
-    });
-
-    },
 
   start: function () {
     if (!this.started) {
@@ -176,6 +241,10 @@ var Game = Backbone.View.extend({
   },
 
   onInterval: function () {
+    if(data.length === 0 && patternkeys.length === 0)
+      end();
+
+
     this.setDate();
     this.addMoreBubbles();
   },
@@ -397,13 +466,20 @@ var Game = Backbone.View.extend({
             $this = $(this);
           this.$this = $this;
           $this.css({
-            fontSize: r,
+            fontSize: that.options.letterSize * r,
             width: r*2,
             height: r*2,
             backgroundColor: d.color
           });
 
-          this.innerText = d.key;
+          if (that.options.showLetters) {
+            this.textContent = d.key;
+            $this.css({
+              color: that.options.letterColor,
+            });
+          
+          }
+          
           return r;
         })
         .style('opacity', 1e-3);
@@ -507,13 +583,12 @@ var Game = Backbone.View.extend({
       bubble;
     
     if (!last) {
-      var i = this.patternkeys[this.bubbleIndex];
+      var i = this.options.patternkeys.shift();
       bubble = this.createBubble(this.bubbleIndex, i, date);
-      console.log("Creating first bubble");
     } else {
       bubbleDifference = date.getTime() - last.date.getTime();
-      if (bubbleDifference > this.patterntime[this.bubbleIndex] * this.options.timeUnit) {
-        var i = this.patternkeys[this.bubbleIndex];
+      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit) {
+        var i = this.options.patternkeys.shift();
         bubble = this.createBubble(this.bubbleIndex, i, date);
       }
     }
@@ -528,7 +603,7 @@ var Game = Backbone.View.extend({
       timeStamp: date.getTime(),
       i: i,
       key: this.options.keys[i],
-      color: this.colorScale(i),
+      color: this.options.bubbleColor[i],
       id: id
     }
   },
