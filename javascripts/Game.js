@@ -20,8 +20,22 @@ var Game = Backbone.View.extend({
     '</div>' +
     '<div class="paused-text-container"><div class="paused-text">~ PAUSED ~</div></div>',
 
+  // #################
+  // Runtime variables
+  // #################
+  
+  data = [],
+  date = new Date(),
+  bubbleIndex = 0,
+  responses = [],
+
+  // ######################
+  // Game options variables
+  // ######################
+  
   options: {
     endPoint: '/~ehrhardn/cgi-bin/server.cgi/',
+    token: 'default',
 
     // ### Bubbles
     // - color (init later)
@@ -71,16 +85,11 @@ var Game = Backbone.View.extend({
 
   initialize: function () {
     var that = this;
-    this.date = new Date();
-    this.data = [];
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
     this.$el.html(this.template);
     
-    this.bubbleIndex = 0;
-    this.responses = [];
-
     this.loadParam(function () {
       that.setup();
       that.layout();
@@ -96,12 +105,12 @@ var Game = Backbone.View.extend({
     // perform sync call with ajax
     jQuery.ajaxSetup({async:false});
     
-    var token = decodeURI(
+    this.options.token = decodeURI(
       (RegExp('token=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
     )
     
     // get config file
-    jQuery.getJSON(this.options.endPoint + 'user/' + token + '/challenge', function(data) {
+    jQuery.getJSON(this.options.endPoint + 'user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
     })
     process();
@@ -243,31 +252,34 @@ var Game = Backbone.View.extend({
       highScore,
       score,
       offset,
+      bestOffset,
       diff,
+      bestDiff,
       bubble;
     if (this.options.keys.indexOf(key) !== -1) {
       for (var i = 0; i < this.data.length; i++) {
         bubble = this.data[i];
-        if (bubble.timeStamp > high) {
-          break;
-        }
-        if (!bubble.beenHit && bubble.key === key && bubble.timeStamp >= low && bubble.timeStamp <= high) {
-          offset = current - bubble.timeStamp;
-          diff = Math.abs(offset);
-          score = this.scoreScale(diff);
-          if (!bestBubble || score > highScore) {
-            highScore = score;
-            bestBubble = bubble;
-          }
+        offset = current - bubble.timeStamp;
+        diff = Math.abs(offset);
+       
+        if(!closestBubble || diff < bestDiff) {
+          bestBubble = bubble;
+          bestDiff = diff;
+          bestOffset = offset;
         }
       }
     }
-    if (bestBubble) {
+    
+    // Update key if has been hit
+    if (!bestBubble.beenHit && bestBubble.key === key && bestBubble.timeStamp >= low && bestBubble.timeStamp <= high) {
+      score = this.scoreScale(diff);
+      highScore = score;
       this.trigger('score', {score: highScore, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = offset;
     }
-    this.feedback(bestBubble);
+    
+    this.feedback(bestBubble.beenHit);
   },
 
   addMoreBubbles: function () {
