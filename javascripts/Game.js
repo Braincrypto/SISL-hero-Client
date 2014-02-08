@@ -256,27 +256,26 @@ var Game = Backbone.View.extend({
       bubble;
 
     // Looking at all the possible bubbles to report error
-    if (this.options.keys.indexOf(key) !== -1) {
-      for (var i = 0; i < this.data.length; i++) {
-        bubble = this.data[i];
-        offset = current - bubble.timeStamp;
-        diff = Math.abs(offset);
-       
-        if(!bestBubble || diff < bestDiff) {
-          bestBubble = bubble;
-          bestDiff = diff;
-          bestOffset = offset;
-        }
+    for (var i = 0; i < this.data.length; i++) {
+      bubble = this.data[i];
+      offset = current - bubble.timeStamp;
+      diff = Math.abs(offset);
+     
+      if(!bestBubble || diff < bestDiff) {
+        bestBubble = bubble;
+        bestDiff = diff;
+        bestOffset = offset;
+        console.log(i);
       }
     }
-    
+  
     // Update key if has been hit
     if (!bestBubble.beenHit && bestBubble.key === key && bestBubble.timeStamp >= low && bestBubble.timeStamp <= high) {
       score = this.scoreScale(diff);
       highScore = score;
       this.trigger('score', {score: highScore, bubble: bestBubble});
       bestBubble.beenHit = true;
-      bestBubble.offset = offset;
+      bestBubble.offset = bestOffset;
     }
     
     this.feedback(bestBubble.beenHit);
