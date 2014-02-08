@@ -21,9 +21,8 @@ var Game = Backbone.View.extend({
     '<div class="paused-text-container"><div class="paused-text">~ PAUSED ~</div></div>',
 
   options: {
-    configURL: 'config.txt',
-    //endPoint: 'stanford.edu/~ehrhardn/cgi-bin/server.cgi/',
     endPoint: '/~ehrhardn/cgi-bin/server.cgi/',
+    token: 'default',
 
     // ### Bubbles
     // - color (init later)
@@ -52,14 +51,13 @@ var Game = Backbone.View.extend({
     numMarkers: 12,
     maxBubbleSize: 100,
     timeToShow: 6000, // 12 seconds
-    interval: 65,//1000/30,
+    interval: 65,
     minTimeBetween: 750,
     maxTimeBetween: 1250,
     timeUnit: 1000,
     accuracy: 250,
     accuracyOffset: 100,
     score: 2500,
-
   },
 
   events: {
@@ -67,20 +65,19 @@ var Game = Backbone.View.extend({
 
   initialize: function () {
     var that = this;
+    this.date = new Date();
     this.data = [];
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
-    this.onInterval = this.onInterval.bind(this);
     this.$el.html(this.template);
     
-    console.log("loading config");
     this.bubbleIndex = 0;
     this.responses = [];
 
     this.loadParam(function () {
       that.setup();
-      that.build();
+      that.layout();
       that.attach();
       that.render();
     });
@@ -88,97 +85,24 @@ var Game = Backbone.View.extend({
 
   loadParam: function(process) {
     var that = this;
-    console.log(that);
     
     // perform sync call with ajax
     jQuery.ajaxSetup({async:false});
     
+    this.options.token = decodeURI(
+      (RegExp('token=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
+    )
+    
     // get config file
-    jQuery.getJSON(this.options.endPoint + 'user/' + 'test' + '/challenge', function(data) {
-      //console.log("Test: " + toString(data));
-      console.log(data);
+    jQuery.getJSON(this.options.endPoint + 'user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
-      console.log(that.options);
     })
     process();
   },  
 
-  loadConfig: function(process) {
-    var that = this;
-    
-    // perform sync call with ajax
-    jQuery.ajaxSetup({async:false});
-    
-    // get config file
-    jQuery.get(this.options.configURL, function(data) {
-      var datasplit = data.split("\n");
-      var table = new Array();
-      for(i = 0; i < datasplit.length; i++) {
-        var linedata = datasplit[i].split(/\s+/g);
-
-        if (linedata[0][0] === "#")
-          continue;
-
-        // load config
-        // number of keys
-        if (linedata[0] === "numkeys") {
-          console.log("Loading numkeys: " + linedata[1]);
-          that.options.keys = that.options.keys.slice(0, parseInt(linedata[1]));
-        }
-        if (linedata[0] === "keylist") {
-          console.log("Loading keys: " + linedata);
-          that.options.keys = linedata.slice(1, linedata.length);
-          console.log(that.options.keys);
-        }
-        if (linedata[0] === "bubblecolor") {
-          console.log("Loading bubble colors: " + linedata);
-          that.options.bubbleColor = linedata.slice(1, linedata.length);
-        }        
-        if (linedata[0] === "monitorrefresh") {
-          console.log("Loading monitorrefresh: " + linedata[1]);
-          that.options.interval = parseInt(linedata[1]);
-        }
-        if (linedata[0] === "showletters") {
-          console.log("Loading show letters: " + linedata[1]);
-          that.options.showLetters = linedata[1] > 0;
-        }
-        if (linedata[0] === "lettercolor") {
-          console.log("Loading letter colors: " + linedata[1]);
-          that.options.letterColor = linedata[1];
-        }
-        if (linedata[0] === "lettersize") {
-          console.log("Loading letter size: " + linedata[1]);
-          that.options.letterSize = linedata[1];
-        }
-        if (linedata[0] === "bubblecolor") {
-          console.log("Loading bubble colors: " + linedata[1]);
-          that.options.bubbleColor = linedata.slice(1, linedata.length);
-        }
-        if (linedata[0] === "adaptivespeed") {
-          console.log("Loading adaptive speed: " + linedata[1]);
-          that.options.adaptiveSpeed = linedata[1] > 0;
-        }
-        if (linedata[0] === "pattern") {
-          console.log("Loading pattern");
-          var rawdata = linedata.slice(1, linedata.length),
-             patternkeys = [],
-             patterntime = [];
-          
-          for(i = 0; i < rawdata.length; i += 2) {
-           patternkeys.push(rawdata[i+1]-1);
-           patterntime.push(rawdata[i]);
-          }
-          that.options.patternkeys = patternkeys.map( function( num )
-            { return parseInt( num, 10 ) }
-          );
-          that.options.patterntime = patterntime.map(parseFloat);
-        }
-      }
-      process();
-    });
-  },
-
   setup: function () {
+    console.log(this.options.keys.length);
+
     this.timeScale = d3.time.scale().range([0, 1]);
 
     this.scoreScale = d3.scale.sqrt()
@@ -211,45 +135,58 @@ var Game = Backbone.View.extend({
       this.options.bubbleColor = d3.scale.category10().range().slice(0, this.options.keys.length);
  },
 
+  // ################
+  // ### Actions ####
+  // ################
+  
   start: function () {
-    if (!this.started) {
+    if (!this.started && !this.end) {
       this.started = true;
       this.layout();
-      if (this.stoppedTime && this.data.length) {
+      if (this.pausedTime && this.data.length) {
         this.adjustDataForStoppedTime();
       }
-      this.setDate();
+      this.refresh();
       this.interval = window.setInterval(this.onInterval, this.options.interval);
-      this.$el.removeClass('paused');
+      this.removeText();
     }
   },
 
   adjustDataForStoppedTime: function () {
-    var diff = new Date().getTime() - this.stoppedTime.getTime();
+    var diff = new Date().getTime() - this.pausedTime.getTime();
     _.each(this.data, function (o) {
       o.date = new Date(o.date.getTime() + diff);
     });
   },
 
-  stop: function () {
+  pauseGame: function () {
+    if (this.started && !this.end) {
+      window.clearInterval(this.interval);
+      this.displayText('~ PAUSE ~<br/>(ESC to continue)');
+      this.started = false;
+      this.pausedTime = new Date();
+    }
+  },
+  
+  endGame: function () {
     if (this.started) {
       window.clearInterval(this.interval);
-      this.$el.addClass('paused');
-      this.started = false;
-      this.stoppedTime = new Date();
+      this.displayText('~ END OF TRAINING ~');
+      this.end = true;
+      this.endTime = new Date();
     }
   },
 
   onInterval: function () {
-    if(data.length === 0 && patternkeys.length === 0)
-      end();
-
-
-    this.setDate();
-    this.addMoreBubbles();
+    if(this.data.length === 0 && this.options.patternkeys.length === 0) {
+      this.endGame();
+    } else {
+      this.refresh();
+    }
   },
 
   attach: function () {
+    this.onInterval = this.onInterval.bind(this);
     this.$document.on('keydown', this.onKeydown.bind(this));
     this.$window.on('resize', this.onWindowResize.bind(this));
 
@@ -257,6 +194,11 @@ var Game = Backbone.View.extend({
     this.$body.on('scroll touchmove', function (evt) { evt.preventDefault(); });
   },
 
+  dettach: function () {
+    this.onInterval = this.onInterval.bind(this);
+    this.$document.off('keydown', this.onKeydown.bind(this));
+  },
+  
   onWindowResize: function () {
     this.layout();
     this.renderGround();
@@ -269,7 +211,7 @@ var Game = Backbone.View.extend({
     if (evt.which === 27) {
       evt.preventDefault();
       if (this.started) {
-        return this.stop();
+        return this.pauseGame();
       } else {
         return this.start();
       }
@@ -280,6 +222,10 @@ var Game = Backbone.View.extend({
     evt.preventDefault();
     this.processKeyHit(String.fromCharCode(evt.keyCode));
   },
+
+  // ##############
+  // ### Logic ####
+  // ##############
 
   processKeyHit: function (key) {
     var current = new Date().getTime() + this.options.accuracyOffset,
@@ -300,7 +246,7 @@ var Game = Backbone.View.extend({
         if (!bubble.beenHit && bubble.key === key && bubble.timeStamp >= low && bubble.timeStamp <= high) {
           offset = current - bubble.timeStamp;
           diff = Math.abs(offset);
-          score = this.scoreScale(Math.abs(diff));
+          score = this.scoreScale(diff);
           if (!bestBubble || score > highScore) {
             highScore = score;
             bestBubble = bubble;
@@ -315,12 +261,89 @@ var Game = Backbone.View.extend({
     }
   },
 
-  build: function () {
-    var that = this;
-    this.setDate(new Date());
-    this.interpretData();
-    this.layout();
+  addMoreBubbles: function () {
+    if (this.options.patternkeys.length === 0)
+      return;
+
+    var last = _.last(this.data),
+      date = new Date(new Date().getTime() + this.options.timeToShow),
+      bubble;
+    
+    if (!last) {
+      var i = this.options.patternkeys.shift();
+      bubble = this.createBubble(this.bubbleIndex, i, date);
+    } else {
+      bubbleDifference = date.getTime() - last.date.getTime();
+      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit) {
+        var i = this.options.patternkeys.shift();
+        bubble = this.createBubble(this.bubbleIndex, i, date);
+      }
+    }
+    if (bubble) {
+      this.data.push(bubble);
+      this.bubbleIndex++;
+    }
   },
+
+  createBubble: function (id, i, date) {
+    return {
+      date: date,
+      timeStamp: date.getTime(),
+      i: i,
+      key: this.options.keys[i],
+      color: this.options.bubbleColor[i],
+      id: id
+    }
+  },
+
+  cleanData: function () {
+    var currentMax = this.date.getTime() - 1000;//+ this.options.accuracyOffset + this.options.accuracy;
+    this.data = _.filter(this.data, function (o) {
+      var kept = o.date.getTime() > currentMax;
+      if(!kept) {
+        this.responses.push({
+          id: o.id,
+          timestamp: o.timestamp,
+          beenHit: o.beenHit,
+          offset: o.beenHit ? o.offset: null,
+        });
+      }
+      return kept;
+    }, this);
+    if (!this.breakStarted && !this.data.length && this.options.patterntime[this.bubbleIndex] > 2*this.options.timeToShow) {
+      this.breakStarted = true;
+      this.breakTime = this.options.patterntime[this.bubbleIndex];
+    }
+  },
+
+  refresh: function () {
+    this.date = new Date();
+    if (this.breakStarted) {
+      this.breakTime = this.breakTime - this.options.interval;
+      if (this.breakTime > 0)
+        this.displayText(
+          "~ BREAK ~<br/>" + 
+          "Time Left: " + 
+          Math.round(this.breakTime / 60000) + ":" + 
+          ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0) + 
+          "<br/>" +
+          "(Will be in paused state after this period)"
+          );
+      else {
+        this.breakStarted = false;
+        this.removeText();
+        this.pauseGame()
+      }
+    } else {
+      this.cleanData();
+      this.addMoreBubbles();
+      this.render();
+    }
+  },
+
+  // ####################
+  // #### Rendering #####
+  // ####################
 
   layout: function () {
     var
@@ -338,10 +361,25 @@ var Game = Backbone.View.extend({
       .attr('width', w)
       .attr('height', h);
   },
+  
+  interpretData: function () {
+    this.timeScale
+      .domain([this.date, new Date(this.date.getTime() + this.options.timeToShow)]);
+  },
 
   render: function () {
+    this.interpretData();
     this.renderGround();
     this.renderBubbles();
+  },
+
+  displayText: function (text) {
+    this.$('.paused-text').html(text);
+    this.$el.addClass('paused');
+  },
+
+  removeText: function () {
+    this.$el.removeClass('paused');
   },
 
   renderGround: function () {
@@ -379,14 +417,13 @@ var Game = Backbone.View.extend({
         var
           near = 1/that.projectionScale.range()[0],
           far = 1/that.projectionScale.range()[1],
-          i = -1,
           delta = 2/(that.options.keys.length + 1)
           segs = [];
 
-        while (1 > (i+=delta)) {
+        for(var i = 1; i <= that.options.keys.length; i++) {
           segs.push(
             'M ' + that.xScale(0) + ',' + that.yScale(0) + ' ' +
-            'L ' + that.xScale( 1*near * i) + ',' + that.yScale(near)
+            'L ' + that.xScale(near * (-1 + i * delta) ) + ',' + that.yScale(near)
           );
         }
 
@@ -549,86 +586,4 @@ var Game = Backbone.View.extend({
       .exit()
       .remove();
   },
-
-  interpretData: function () {
-    this.timeScale
-      .domain([this.date, new Date(this.date.getTime() + this.options.timeToShow)]);
-  },
-
-  oldAddMoreBubbles: function () {
-    var last = _.last(this.data),
-      random = Math.random(),
-      difference = this.options.maxTimeBetween - this.options.minTimeBetween,
-      date = new Date(new Date().getTime() + this.options.timeToShow + Math.floor(Math.random() * this.options.interval)),
-      bubbleDifference,
-      bubble;
-    if (!last) {
-      var i = Math.floor(Math.random() * this.options.keys.length);
-      bubble = this.createBubble(i, date);
-    } else {
-      bubbleDifference = date.getTime() - last.date.getTime();
-      if (bubbleDifference > this.options.maxTimeBetween || (bubbleDifference > (difference * random)) && bubbleDifference > this.options.minTimeBetween) {
-        var i = Math.floor(Math.random() * this.options.keys.length);
-        bubble = this.createBubble(i, date);
-      }
-    }
-    if (bubble) {
-      this.data.push(bubble);
-    }
-  },
-
-  addMoreBubbles: function () {
-    var last = _.last(this.data),
-      date = new Date(new Date().getTime() + this.options.timeToShow),
-      bubble;
-    
-    if (!last) {
-      var i = this.options.patternkeys.shift();
-      bubble = this.createBubble(this.bubbleIndex, i, date);
-    } else {
-      bubbleDifference = date.getTime() - last.date.getTime();
-      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit) {
-        var i = this.options.patternkeys.shift();
-        bubble = this.createBubble(this.bubbleIndex, i, date);
-      }
-    }
-    if (bubble) {
-      this.data.push(bubble);
-      this.bubbleIndex++;
-    }
-  },
-  createBubble: function (id, i, date) {
-    return {
-      date: date,
-      timeStamp: date.getTime(),
-      i: i,
-      key: this.options.keys[i],
-      color: this.options.bubbleColor[i],
-      id: id
-    }
-  },
-
-  cleanData: function () {
-    this.data = _.filter(this.data, function (o) {
-      var out = (o.date.getTime() + 1000) > this.date.getTime();
-      if(!out) {
-        this.responses.push({
-          id: o.id,
-          timestamp: o.timestamp,
-          beenHit: o.beenHit,
-          offset: o.beenHit ? o.offset: null,
-        });
-        console.log(JSON.stringify(this.responses[this.responses.length-1]));
-      }
-      return out;
-    }, this);
-  },
-
-  setDate: function (d) {
-    this.date = new Date();
-    this.cleanData();
-    this.interpretData();
-    this.render();
-  }
-
 });
