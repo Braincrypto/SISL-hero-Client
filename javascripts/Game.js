@@ -117,8 +117,6 @@ var Game = Backbone.View.extend({
   },  
 
   setup: function () {
-    console.log(this.options.keys.length);
-
     this.timeScale = d3.time.scale().range([0, 1]);
 
     this.scoreScale = d3.scale.sqrt()
@@ -486,7 +484,6 @@ var Game = Backbone.View.extend({
           z1 = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset - that.options.accuracyRange)),
           p0 = 1 / that.projectionScale(z0);
           p1 = 1 / that.projectionScale(z1);
-          console.log(that.yScale(p1)-that.yScale(p0));
           return Math.ceil(that.yScale(p1)-that.yScale(p0)) + 'px';
       });
   },
