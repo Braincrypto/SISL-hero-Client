@@ -24,10 +24,10 @@ var Game = Backbone.View.extend({
   // Runtime variables
   // #################
   
-  data = [],
-  date = new Date(),
-  bubbleIndex = 0,
-  responses = [],
+  data: [],
+  date: new Date(),
+  bubbleIndex: 0,
+  responses: [],
 
   // ######################
   // Game options variables
