@@ -256,13 +256,15 @@ var Game = Backbone.View.extend({
       diff,
       bestDiff,
       bubble;
+
+    // Looking at all the possible bubbles to report error
     if (this.options.keys.indexOf(key) !== -1) {
       for (var i = 0; i < this.data.length; i++) {
         bubble = this.data[i];
         offset = current - bubble.timeStamp;
         diff = Math.abs(offset);
        
-        if(!closestBubble || diff < bestDiff) {
+        if(!bestBubble || diff < bestDiff) {
           bestBubble = bubble;
           bestDiff = diff;
           bestOffset = offset;
