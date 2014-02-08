@@ -267,6 +267,8 @@ var Game = Backbone.View.extend({
         bestOffset = offset;
       }
     }
+
+    console.log(bestBubble);
   
     // Update key if has been hit
     if (!bestBubble.beenHit && bestBubble.key === key && bestBubble.timeStamp >= low && bestBubble.timeStamp <= high) {
