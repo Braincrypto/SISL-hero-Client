@@ -265,7 +265,6 @@ var Game = Backbone.View.extend({
         bestBubble = bubble;
         bestDiff = diff;
         bestOffset = offset;
-        console.log(i);
       }
     }
   
@@ -276,6 +275,7 @@ var Game = Backbone.View.extend({
       this.trigger('score', {score: highScore, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
+      console.log(bestBubble.key);
     }
     
     this.feedback(bestBubble.beenHit);
