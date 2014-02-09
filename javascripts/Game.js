@@ -124,9 +124,6 @@ var Game = Backbone.View.extend({
       console.log('CORS enabled? ' + jQuery.support.cors);
     })
 
-    console.log(that.options.patternkeys.toString());
-    console.log(that.options.keys);
-
     process();
   },  
 
@@ -316,8 +313,6 @@ var Game = Backbone.View.extend({
       }
     }
     if (bubble) {
-      console.log(i);
-      console.log(bubble.key);
       this.data.push(bubble);
       this.bubbleIndex++;
     }
