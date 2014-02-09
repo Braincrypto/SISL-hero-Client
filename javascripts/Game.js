@@ -34,7 +34,7 @@ var Game = Backbone.View.extend({
   // ######################
   
   options: {
-    endPoint: '/~ehrhardn/cgi-bin/server.cgi/',
+    endPoint: 'http://127.0.0.1:5000',
     token: 'default',
 
     // ### Bubbles
@@ -102,17 +102,31 @@ var Game = Backbone.View.extend({
   loadParam: function(process) {
     var that = this;
     
-    // perform sync call with ajax
+    // perform sync call with ajax on cross domain using CORS
     jQuery.ajaxSetup({async:false});
-    
+
     this.options.token = decodeURI(
       (RegExp('token=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
     )
+    this.options.token = this.options.token.replace('/', '');
     
     // get config file
-    jQuery.getJSON(this.options.endPoint + 'user/' + this.options.token + '/challenge', function(data) {
+    console.log(this.options.endPoint + '/user/' + this.options.token + '/challenge');
+    jQuery.getJSON(this.options.endPoint + '/user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
     })
+    .done(function() {
+      console.log('Data successfully received!'); 
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      console.log('Data not received... ' + textStatus); 
+      console.log(errorThrown.toString());
+      console.log('CORS enabled? ' + jQuery.support.cors);
+    })
+
+    console.log(that.options.patternkeys.toString());
+    console.log(that.options.keys);
+
     process();
   },  
 
@@ -302,6 +316,8 @@ var Game = Backbone.View.extend({
       }
     }
     if (bubble) {
+      console.log(i);
+      console.log(bubble.key);
       this.data.push(bubble);
       this.bubbleIndex++;
     }
