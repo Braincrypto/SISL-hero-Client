@@ -24,10 +24,19 @@ var Game = Backbone.View.extend({
   // Runtime variables
   // #################
   
-  data: [],
+  // runtime variables
+  currentBubbles: [],
   date: new Date(),
   bubbleIndex: 0,
+
+  // responses
   responses: [],
+  batch: 0,
+  combo: 0,
+  
+  // state
+  started: false,
+  ended: false,
 
   // ######################
   // Game options variables
@@ -36,6 +45,8 @@ var Game = Backbone.View.extend({
   options: {
     endPoint: 'http://127.0.0.1:5000',
     token: 'default',
+    expNumber: 0,
+    batchSize: 12,
 
     // ### Bubbles
     // - color (init later)
@@ -123,6 +134,9 @@ var Game = Backbone.View.extend({
       console.log(errorThrown.toString());
       console.log('CORS enabled? ' + jQuery.support.cors);
     })
+    
+    // get back to asynchronous mode
+    jQuery.ajaxSetup({async:true});
 
     process();
   },  
@@ -165,11 +179,12 @@ var Game = Backbone.View.extend({
   // ################
   
   start: function () {
-    if (!this.started && !this.end) {
+    if (!this.started && !this.ended) {
       this.started = true;
       this.layout();
-      if (this.pausedTime && this.data.length) {
+      if (this.currentBubbles.length) {
         this.adjustDataForStoppedTime();
+        console.log("adjusted");
       }
       this.refresh();
       this.interval = window.setInterval(this.onInterval, this.options.interval);
@@ -179,13 +194,13 @@ var Game = Backbone.View.extend({
 
   adjustDataForStoppedTime: function () {
     var diff = new Date().getTime() - this.pausedTime.getTime();
-    _.each(this.data, function (o) {
+    _.each(this.currentBubbles, function (o) {
       o.date = new Date(o.date.getTime() + diff);
     });
   },
 
   pauseGame: function () {
-    if (this.started && !this.end) {
+    if (this.started && !this.ended) {
       window.clearInterval(this.interval);
       this.displayText('~ PAUSE ~<br/>(ESC to continue)');
       this.started = false;
@@ -197,13 +212,14 @@ var Game = Backbone.View.extend({
     if (this.started) {
       window.clearInterval(this.interval);
       this.displayText('~ END OF TRAINING ~');
-      this.end = true;
-      this.endTime = new Date();
+      this.ended = true;
+      this.endedTime = new Date();
+      this.sendResponses();
     }
   },
 
   onInterval: function () {
-    if(this.data.length === 0 && this.options.patternkeys.length === 0) {
+    if(this.currentBubbles.length === 0 && this.options.patternkeys.length === 0) {
       this.endGame();
     } else {
       this.refresh();
@@ -245,7 +261,10 @@ var Game = Backbone.View.extend({
     if (!this.started) {
       return;
     }
-    evt.preventDefault();
+    
+    if(!evt.isDefaultPrevented())
+      evt.preventDefault();
+    
     this.processKeyHit(String.fromCharCode(evt.keyCode));
   },
 
@@ -258,8 +277,6 @@ var Game = Backbone.View.extend({
       high = current + this.options.accuracyRange,
       low = current - this.options.accuracyRange,
       bestBubble = false,
-      highScore,
-      score,
       offset,
       bestOffset,
       diff,
@@ -267,9 +284,9 @@ var Game = Backbone.View.extend({
       bubble;
 
     // Looking at all the possible bubbles to report error
-    for (var i = 0; i < this.data.length; i++) {
-      bubble = this.data[i];
-      offset = current - bubble.timeStamp;
+    for (var i = 0; i < this.currentBubbles.length; i++) {
+      bubble = this.currentBubbles[i];
+      offset = current - bubble.date.getTime();
       diff = Math.abs(offset);
      
       if(!bestBubble || diff < bestDiff) {
@@ -279,18 +296,23 @@ var Game = Backbone.View.extend({
       }
     }
 
-    console.log(bestBubble);
-  
     // Update key if has been hit
-    if (!bestBubble.beenHit && bestBubble.key === key && bestBubble.timeStamp >= low && bestBubble.timeStamp <= high) {
-      score = this.scoreScale(diff);
-      highScore = score;
-      this.trigger('score', {score: highScore, bubble: bestBubble});
+    if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.options.accuracyRange) {
+      var score = this.scoreScale(bestDiff);
+      this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
-      console.log(bestBubble.key);
     }
     
+    this.responses.push({
+      responseKeyDate: this.date.getTime(),
+      key: this.options.keys.indexOf(key),
+      hit: bestBubble.beenHit,
+      offset: bestOffset,
+      closestKey: bestBubble.keyNumber + 1,
+      queuePosition: bestBubble.id
+    });
+
     this.feedback(bestBubble.beenHit);
   },
 
@@ -298,7 +320,7 @@ var Game = Backbone.View.extend({
     if (this.options.patternkeys.length === 0)
       return;
 
-    var last = _.last(this.data),
+    var last = _.last(this.currentBubbles),
       date = new Date(new Date().getTime() + this.options.timeToShow),
       bubble;
     
@@ -313,65 +335,116 @@ var Game = Backbone.View.extend({
       }
     }
     if (bubble) {
-      this.data.push(bubble);
+      this.currentBubbles.push(bubble);
       this.bubbleIndex++;
     }
   },
 
   createBubble: function (id, i, date) {
     return {
+      id: id,
       date: date,
-      timeStamp: date.getTime(),
-      i: i,
+      keyNumber: i,
       key: this.options.keys[i],
       color: this.options.bubbleColor[i],
-      id: id
-    }
+      beenHit: false,
+    };
   },
 
   cleanData: function () {
-    var currentMax = this.date.getTime() - 1000;//+ this.options.accuracyOffset + this.options.accuracy;
-    this.data = _.filter(this.data, function (o) {
-      var kept = o.date.getTime() > currentMax;
-      if(!kept) {
-        this.responses.push({
-          id: o.id,
-          timestamp: o.timestamp,
-          beenHit: o.beenHit,
-          offset: o.beenHit ? o.offset: null,
-        });
-      }
-      return kept;
+    this.currentBubbles = _.filter(this.currentBubbles, function (o) {
+      return o.date.getTime() + 1000 > this.date.getTime();
     }, this);
-    if (!this.breakStarted && !this.data.length && this.options.patterntime[this.bubbleIndex] > 2*this.options.timeToShow) {
+  },
+
+  breakCheck: function() {
+    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] > 2*this.options.timeToShow) {
       this.breakStarted = true;
       this.breakTime = this.options.patterntime[this.bubbleIndex];
+    }
+  },
+
+  breakUpdate: function() {
+    this.breakTime = this.breakTime - this.options.interval;
+    if (this.breakTime > 0)
+      this.displayText(
+        "~ BREAK ~<br/>" + 
+        "Time Left: " + 
+        Math.round(this.breakTime / 60000) + ":" + 
+        ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0) + 
+        "<br/>" +
+        "(Will be in paused state after this period)"
+        );
+    else {
+      this.breakStarted = false;
+      this.removeText();
+      this.pauseGame()
+    }
+  },
+
+  sendResponses: function() {
+    if(this.responses.length >= this.options.batchSize || (this.responses.length > 0 && this.ended)) {
+      // store the batch locally
+      var 
+        responsesBatch = this.responses,
+        batchProcessed = this.batch;
+      
+      // update batch number and empty buffer
+      this.batch++;
+      this.responses = [];
+      
+      // send data
+      console.log('Batch: ' + batchProcessed + ' - Sending');
+      jQuery.ajax({
+        type: "POST",
+        crossDomain: true,
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        url: this.options.endPoint + '/user/' + this.options.token + '/response/' + this.options.expNumber,
+        data: JSON.stringify({
+          token: this.options.token,
+          expNumber: this.options.expNumber,
+          batchId: batchProcessed,
+          end: this.ended,
+          responses: responsesBatch, 
+        }),
+        // Will retry three times
+        timeout: 10000,
+        tryCount: 0,
+        retryLimit: 3,
+        error: function(xhr, textStatus, errorThrown ) {
+          if (textStatus === 'timeout') {
+            console.log('Batch: ' + batchProcessed + ' - Timeout');
+            this.tryCount++;
+            if (this.tryCount <= this.retryLimit) {
+              //try again
+              $.ajax(this);
+              return;
+            }            
+            return;
+          }
+        },
+        success: function() {
+          console.log('Batch: ' + batchProcessed + ' - Success');
+        },
+        complete: function() {
+          console.log('Batch: ' + batchProcessed + ' - Sent');
+        }
+      });
     }
   },
 
   refresh: function () {
     this.date = new Date();
     if (this.breakStarted) {
-      this.breakTime = this.breakTime - this.options.interval;
-      if (this.breakTime > 0)
-        this.displayText(
-          "~ BREAK ~<br/>" + 
-          "Time Left: " + 
-          Math.round(this.breakTime / 60000) + ":" + 
-          ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0) + 
-          "<br/>" +
-          "(Will be in paused state after this period)"
-          );
-      else {
-        this.breakStarted = false;
-        this.removeText();
-        this.pauseGame()
-      }
+      this.breakUpdate();
     } else {
+      this.sendResponses();
       this.clearFeedback();
       this.cleanData();
       this.addMoreBubbles();
       this.render();
+      this.breakCheck();
     }
   },
 
@@ -566,7 +639,7 @@ var Game = Backbone.View.extend({
 
     // Data
     bubbles = d3.select(this.el).selectAll('.bubble')
-      .data(this.data, function (d) {
+      .data(this.currentBubbles, function (d) {
         return d.id;
       });
 
@@ -641,10 +714,10 @@ var Game = Backbone.View.extend({
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
           r = that.options.maxBubbleSize * p;
-          if (d.i < (that.options.keys.length / 2))
-            c = -1 + (d.i + 1) * division;
+          if (d.keyNumber < (that.options.keys.length / 2))
+            c = -1 + (d.keyNumber + 1) * division;
           else
-            c = 1 - (that.options.keys.length - d.i) * division;
+            c = 1 - (that.options.keys.length - d.keyNumber) * division;
         return that.xScale(c*p) + 'px';
       })
       .style('margin-top', function (d) {
