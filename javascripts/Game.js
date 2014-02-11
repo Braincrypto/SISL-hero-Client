@@ -305,9 +305,9 @@ var Game = Backbone.View.extend({
       this.sendResponses();
       this.clearFeedback();
       this.cleanData();
+      this.breakCheck();
       this.addMoreBubbles();
       this.render();
-      this.breakCheck();
     }
   },
 
@@ -478,9 +478,10 @@ var Game = Backbone.View.extend({
   },
 
   breakCheck: function() {
-    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] > 2*this.timeToShow) {
+    console.log(this.options.patterntime[this.bubbleIndex] * this.options.timeUnit + " " + this.timeToShow);
+    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] * this.options.timeUnit > this.timeToShow) {
       this.breakStarted = true;
-      this.breakTime = this.options.patterntime[this.bubbleIndex];
+      this.breakTime = this.options.timeUnit * this.options.patterntime[this.bubbleIndex];
     }
   },
 
