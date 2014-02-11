@@ -3,7 +3,6 @@ var Game = Backbone.View.extend({
 
   template: 
     '<div class="scene">' +
-      '<div class="horizon"></div>' +
       '<div class="ground">' +
         '<svg width="0" height="0">' +
           '<defs>' +
@@ -12,8 +11,27 @@ var Game = Backbone.View.extend({
               '<stop offset="20%" stop-color="#666" />' +
               '<stop offset="100%" stop-color="#666" />' +
             '</linearGradient>' +
-          '</defs>' +
+            '<linearGradient id="target-zone-grad" x1="0" y1="0" x2="0" y2="100%">' +
+              '<stop offset="0%" stop-color="#666" />' +
+              '<stop offset="20%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="80%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="100%" stop-color="#666" />' +
+            '</linearGradient>' +
+            '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
+              '<stop offset="0%" stop-color="#666"/>' +
+              '<stop offset="20%" stop-color="#8dc63f"/>' +
+              '<stop offset="80%" stop-color="#8dc63f"/>' +
+              '<stop offset="100%" stop-color="#666"/>' +
+            '</linearGradient>' +
+            '<linearGradient id="target-zone-grad-bad" x1="0" y1="0" x2="0" y2="100%">' +
+              '<stop offset="0%" stop-color="#666"/>' +
+              '<stop offset="20%" stop-color="#D00000" stop-opacity="0.3"/>' +
+              '<stop offset="80%" stop-color="#D00000" stop-opacity="0.3"/>' +
+              '<stop offset="100%" stop-color="#666"/>' +
+            '</linearGradient>' +
+            '</defs>' +
           '<path class="grass" d="M 0,0 L 0,0 L 0,0, L 0,0 z" fill="url(#goal-timeline-grad)"/>' +
+          '<path class="target" d="M 0,0 L 0,0 L 0,0, L 0,0 z" fill="url(#target-zone-grad)"/>' +
           '<path class="verticals" />' +
         '</svg>' +
       '</div>' +
@@ -585,12 +603,12 @@ var Game = Backbone.View.extend({
     var that = this;
     that.feedbackDate = new Date(new Date().getTime() + that.options.accuracyRange);
     that.feedbackOn = true;
-    d3.select(this.el).select('.horizon')
-      .style('background', function () {
+    d3.select(this.el).select('.target')
+      .style('fill', function () {
         if (answer) {
-          return 'green';
+          return 'url(#target-zone-grad-good)';
         } else {
-         return 'red';
+         return 'url(#target-zone-grad-bad)';
         }
       });
   },
@@ -598,9 +616,9 @@ var Game = Backbone.View.extend({
   clearFeedback: function() {
     var that = this;
     if(this.feedbackOn && this.feedbackDate.getTime() < new Date().getTime()) {
-      d3.select(this.el).select('.horizon')
-        .style('background', function () {
-          return '#8dc63f';
+      d3.select(this.el).select('.target')
+        .style('fill', function () {
+          return 'url(#target-zone-grad)';
         });      
       that.feedbackOn = false;
     }
@@ -610,7 +628,6 @@ var Game = Backbone.View.extend({
     this.interpretData();
     var that = this;
     
-
     d3.select(this.el).select('.grass')
       .attr('d', function () {
         var
@@ -625,6 +642,24 @@ var Game = Backbone.View.extend({
           'z'
         );
       });    
+
+    d3.select(this.el).select('.target')
+      .attr('d', function () {
+        var
+          zfar = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset + that.options.accuracyRange)),
+          znear = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset - that.options.accuracyRange)),
+          far = 1 / that.projectionScale(zfar);
+          near = 1 / that.projectionScale(znear);
+ 
+        return (
+          'M ' + that.xScale(-1*far) + ',' + that.yScale(far) + ' ' +
+          'L ' + that.xScale( 1*far) + ',' + that.yScale(far) + ' ' +
+          'L ' + that.xScale( 1*near) + ',' + that.yScale(near) + ' ' +
+          'L ' + that.xScale(-1*near) + ',' + that.yScale(near) + ' ' +
+          'z'
+        );
+      });    
+
 
     d3.select(this.el).select('.verticals')
       .attr('d', function () {
@@ -646,22 +681,6 @@ var Game = Backbone.View.extend({
          }
 
         return segs.join(' ');
-      });
-
-    d3.select(this.el).select('.horizon')
-      .style('top', function () {
-        var
-          z = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset + that.options.accuracyRange)),
-          p = 1 / that.projectionScale(z);
-        return Math.ceil(that.yScale(p)) + 'px';
-      })
-      .style('height', function () {
-        var
-          z0 = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset + that.options.accuracyRange)),
-          z1 = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset - that.options.accuracyRange)),
-          p0 = 1 / that.projectionScale(z0);
-          p1 = 1 / that.projectionScale(z1);
-          return Math.ceil(that.yScale(p1)-that.yScale(p0)) + 'px';
       });
   },
 
@@ -692,7 +711,7 @@ var Game = Backbone.View.extend({
         return that.markerOpacityScale(z);
       })
       .style('z-index', function (date, i, a) {
-        return that.zIndexScale(that.timeScale(date)) - 2;
+        return that.zIndexScale(that.timeScale(date)) - 10;
       })
       .style('top', function (d) {
         var
