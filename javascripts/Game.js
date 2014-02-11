@@ -112,7 +112,7 @@ var Game = Backbone.View.extend({
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
-    this.$el.html(this.template);
+    this.$el.html(that.template);
     
     this.loadParam(function () {
       that.setup();
@@ -511,6 +511,7 @@ var Game = Backbone.View.extend({
           expNumber: this.options.expNumber,
           batchId: batchProcessed,
           end: this.ended,
+          score: this.score,
           responses: responsesBatch, 
         }),
         // Will retry three times

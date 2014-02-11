@@ -12,14 +12,6 @@ var Hero = Backbone.View.extend({
   },
 
   build: function () {
-    if (this.browserSupportsTouch()) {
-      this.$body.addClass('has-controller-bar');
-      this.controllerBar = new ControllerBar({
-        keys: _.clone(Game.prototype.options.keys)
-      });
-      this.$body.append(this.controllerBar.$el);
-    }
-
     this.game = new Game({
       el: $('.game')
     });
@@ -52,14 +44,7 @@ var Hero = Backbone.View.extend({
     this.game.processKeyHit(evt.key);
   },
 
-  browserSupportsTouch: function () {
-    try {  
-      document.createEvent("TouchEvent");  
-      return true;  
-    } catch (e) {  
-      return false;  
-    }  
-  }
+
 });
 
 $(function () {
