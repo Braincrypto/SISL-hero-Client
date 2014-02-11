@@ -353,7 +353,7 @@ var Game = Backbone.View.extend({
       eventTimestamp: this.date.getTime(),
       speedFactor: this.speedFactor,
       speedChange: 0,
-      key: this.options.keys.indexOf(key),
+      key: this.options.keys.indexOf(key) + 1,
       hit: bestBubble.beenHit,
       offset: bestOffset,
       closestKey: bestBubble.keyNumber + 1,
