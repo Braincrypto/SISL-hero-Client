@@ -216,7 +216,7 @@ var Game = Backbone.View.extend({
       this.layout();
       if (this.currentBubbles.length) {
         this.readjustBubbleDate();
-        console.log("adjusted");
+        console.log("Time adjusted after paused");
       }
       this.refresh();
       this.interval = window.setInterval(this.onInterval, this.options.interval);
@@ -478,7 +478,6 @@ var Game = Backbone.View.extend({
   },
 
   breakCheck: function() {
-    console.log(this.options.patterntime[this.bubbleIndex] * this.options.timeUnit + " " + this.timeToShow);
     if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] * this.options.timeUnit > this.timeToShow) {
       this.breakStarted = true;
       this.breakTime = this.options.timeUnit * this.options.patterntime[this.bubbleIndex];
