@@ -28,12 +28,14 @@ var Game = Backbone.View.extend({
   currentBubbles: [],
   date: new Date(),
   bubbleIndex: 0,
+  speedFactor: 1,
+  timeToShow: 6000, // 12 seconds
 
   // responses
   responses: [],
   batch: 0,
-  combo: 0,
-  
+  combo: [],
+
   // state
   started: false,
   ended: false,
@@ -44,9 +46,22 @@ var Game = Backbone.View.extend({
   
   options: {
     endPoint: 'http://127.0.0.1:5000',
+    
+    // ### IDs
     token: 'default',
     expNumber: 0,
-    batchSize: 12,
+
+    // ### responses
+    // - send options
+    batchSize: 30,
+    
+    // - speed
+    comboWindow: 12,
+    speedUpTrigger: 0.8,
+    speedUpInc: 0.05,
+    slowDownTrigger: 0.3,
+    lowestSpeedFactor: 0.3,
+    slowDownDec: -0.05,
 
     // ### Bubbles
     // - color (init later)
@@ -79,10 +94,8 @@ var Game = Backbone.View.extend({
     maxBubbleSize: 100,
 
     // ### Time
-    timeToShow: 6000, // 12 seconds
+    baseTimeToShow: 6000, // 6 seconds
     interval: 65,
-    minTimeBetween: 750,
-    maxTimeBetween: 1250,
     timeUnit: 1000,
     accuracyRange: 100,
     accuracyOffset: 100,
@@ -183,20 +196,13 @@ var Game = Backbone.View.extend({
       this.started = true;
       this.layout();
       if (this.currentBubbles.length) {
-        this.adjustDataForStoppedTime();
+        this.readjustBubbleDate();
         console.log("adjusted");
       }
       this.refresh();
       this.interval = window.setInterval(this.onInterval, this.options.interval);
       this.removeText();
     }
-  },
-
-  adjustDataForStoppedTime: function () {
-    var diff = new Date().getTime() - this.pausedTime.getTime();
-    _.each(this.currentBubbles, function (o) {
-      o.date = new Date(o.date.getTime() + diff);
-    });
   },
 
   pauseGame: function () {
@@ -262,8 +268,7 @@ var Game = Backbone.View.extend({
       return;
     }
     
-    if(!evt.isDefaultPrevented())
-      evt.preventDefault();
+    evt.preventDefault();
     
     this.processKeyHit(String.fromCharCode(evt.keyCode));
   },
@@ -271,6 +276,21 @@ var Game = Backbone.View.extend({
   // ##############
   // ### Logic ####
   // ##############
+
+  refresh: function () {
+    this.date = new Date();
+    this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
+    if (this.breakStarted) {
+      this.breakUpdate();
+    } else {
+      this.sendResponses();
+      this.clearFeedback();
+      this.cleanData();
+      this.addMoreBubbles();
+      this.render();
+      this.breakCheck();
+    }
+  },
 
   processKeyHit: function (key) {
     var current = new Date().getTime() + this.options.accuracyOffset,
@@ -302,17 +322,27 @@ var Game = Backbone.View.extend({
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
+
+      this.combo.push(1);
+    } else {
+      this.combo.push(0);
     }
-    
+
+
+    // add response to buffer
     this.responses.push({
-      responseKeyDate: this.date.getTime(),
+      eventType: 'press-key',
+      eventTimestamp: this.date.getTime(),
+      speedFactor: this.speedFactor,
+      speedChange: 0,
       key: this.options.keys.indexOf(key),
       hit: bestBubble.beenHit,
       offset: bestOffset,
       closestKey: bestBubble.keyNumber + 1,
       queuePosition: bestBubble.id
     });
-
+    
+    // give visual feeback
     this.feedback(bestBubble.beenHit);
   },
 
@@ -321,7 +351,7 @@ var Game = Backbone.View.extend({
       return;
 
     var last = _.last(this.currentBubbles),
-      date = new Date(new Date().getTime() + this.options.timeToShow),
+      date = new Date(new Date().getTime() + this.timeToShow),
       bubble;
     
     if (!last) {
@@ -329,7 +359,7 @@ var Game = Backbone.View.extend({
       bubble = this.createBubble(this.bubbleIndex, i, date);
     } else {
       bubbleDifference = date.getTime() - last.date.getTime();
-      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit) {
+      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit / this.speedFactor) {
         var i = this.options.patternkeys.shift();
         bubble = this.createBubble(this.bubbleIndex, i, date);
       }
@@ -341,7 +371,11 @@ var Game = Backbone.View.extend({
   },
 
   createBubble: function (id, i, date) {
-    return {
+    // adjust speed
+    var speedChange = this.readjustSpeed();
+
+    // create bubble
+    var newBubble = {
       id: id,
       date: date,
       keyNumber: i,
@@ -349,16 +383,83 @@ var Game = Backbone.View.extend({
       color: this.options.bubbleColor[i],
       beenHit: false,
     };
-  },
+    
+    // push event appeared
+    this.responses.push({
+      eventType: 'bubble-appeared',
+      eventTimestamp: this.date.getTime(),
+      speedFactor: this.speedFactor,
+      speedChange: speedChange,
+      key: newBubble.keyNumber + 1,
+      hit: false,
+      offset: 0,
+      closestKey: 0,
+      queuePosition: newBubble.id
+    });
+
+    return newBubble;
+    },
 
   cleanData: function () {
-    this.currentBubbles = _.filter(this.currentBubbles, function (o) {
-      return o.date.getTime() + 1000 > this.date.getTime();
+    this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
+      var kept = bubble.date.getTime() + this.options.accuracyOffset + this.options.accuracyRange + 100 > this.date.getTime();
+      if (!kept) {
+        // adjust combo
+        this.combo.push(0);
+
+        // push event disappeared
+        this.responses.push({
+          eventType: 'bubble-disappeared',
+          eventTimestamp: this.date.getTime(),
+          speedFactor: this.speedFactor,
+          speedChange: 0,
+          key: bubble.keyNumber + 1,
+          hit: false,
+          offset: 0,
+          closestKey: 0,
+          queuePosition: bubble.id
+        });
+      }
+      return kept;
     }, this);
+  },
+  
+  readjustSpeed: function() {
+    if (!this.options.adaptativeSpeed)
+      return 0;
+
+    // recompute speedFactor
+    var speedChange = 0;
+    if(this.combo.length > this.options.comboWindow) {
+      var sum = 0;
+      for(var i = 0; i < this.combo.length; i++)
+        sum += this.combo[i];
+      
+      var ratio = sum / this.combo.length;
+
+      this.combo = [];
+
+      if(ratio > this.options.speedUpTrigger)
+        speedChange = this.options.speedUpInc;
+
+      if(ratio < this.options.slowDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
+        speedChange = this.options.slowDownDec;
+
+      this.speedFactor += speedChange;
+      console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
+    }
+    return speedChange;
+  },
+
+  readjustBubbleDate: function () {
+    var diff = new Date().getTime() - this.pausedTime.getTime();
+    _.each(this.currentBubbles, function (o) {
+      o.date = new Date(o.date.getTime() + diff);
+    });
   },
 
   breakCheck: function() {
-    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] > 2*this.options.timeToShow) {
+    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] > 2*this.timeToShow) {
       this.breakStarted = true;
       this.breakTime = this.options.patterntime[this.bubbleIndex];
     }
@@ -381,6 +482,10 @@ var Game = Backbone.View.extend({
       this.pauseGame()
     }
   },
+
+  // ################
+  // ### Network ####
+  // ################
 
   sendResponses: function() {
     if(this.responses.length >= this.options.batchSize || (this.responses.length > 0 && this.ended)) {
@@ -409,7 +514,7 @@ var Game = Backbone.View.extend({
           responses: responsesBatch, 
         }),
         // Will retry three times
-        timeout: 10000,
+        timeout: 60000,
         tryCount: 0,
         retryLimit: 3,
         error: function(xhr, textStatus, errorThrown ) {
@@ -431,20 +536,6 @@ var Game = Backbone.View.extend({
           console.log('Batch: ' + batchProcessed + ' - Sent');
         }
       });
-    }
-  },
-
-  refresh: function () {
-    this.date = new Date();
-    if (this.breakStarted) {
-      this.breakUpdate();
-    } else {
-      this.sendResponses();
-      this.clearFeedback();
-      this.cleanData();
-      this.addMoreBubbles();
-      this.render();
-      this.breakCheck();
     }
   },
 
@@ -471,7 +562,7 @@ var Game = Backbone.View.extend({
   
   interpretData: function () {
     this.timeScale
-      .domain([this.date, new Date(this.date.getTime() + this.options.timeToShow)]);
+      .domain([this.date, new Date(this.date.getTime() + this.timeToShow)]);
   },
 
   render: function () {
