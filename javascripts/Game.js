@@ -67,7 +67,7 @@ var Game = Backbone.View.extend({
     
     // ### IDs
     token: 'default',
-    expNumber: 0,
+    stepNumber: 0,
 
     // ### responses
     // - send options
@@ -523,10 +523,10 @@ var Game = Backbone.View.extend({
         crossDomain: true,
         contentType: "application/json; charset=utf-8",
         dataType: "json",
-        url: this.options.endPoint + '/user/' + this.options.token + '/response/' + this.options.expNumber,
+        url: this.options.endPoint + '/user/' + this.options.token + '/response',
         data: JSON.stringify({
           token: this.options.token,
-          expNumber: this.options.expNumber,
+          stepNumber: this.options.stepNumber,
           batchId: batchProcessed,
           end: this.ended,
           score: this.score,
