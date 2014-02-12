@@ -36,7 +36,7 @@ var Game = Backbone.View.extend({
         '</svg>' +
       '</div>' +
     '</div>' +
-    '<div class="paused-text-container"><div class="paused-text">~ LOADING ~</div></div>',
+    '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>',
 
   // #################
   // Runtime variables
