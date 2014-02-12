@@ -22,7 +22,7 @@ var Hero = Backbone.View.extend({
     });
 
     _.defer(function (that) {
-      that.game.start();
+      that.game.instructionGame();
     }, this);
   },
   

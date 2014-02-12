@@ -36,7 +36,7 @@ var Game = Backbone.View.extend({
         '</svg>' +
       '</div>' +
     '</div>' +
-    '<div class="paused-text-container"><div class="paused-text">~ PAUSED ~</div></div>',
+    '<div class="paused-text-container"><div class="paused-text">~ LOADING ~</div></div>',
 
   // #################
   // Runtime variables
@@ -132,6 +132,7 @@ var Game = Backbone.View.extend({
     this.$window = $(window);
     this.$body = $('body');
     this.$el.html(that.template);
+    this.displayText('~ LOADING ~');
     
     this.loadParam(function () {
       that.setup();
@@ -210,7 +211,20 @@ var Game = Backbone.View.extend({
   // ### Actions ####
   // ################
   
-  start: function () {
+  instructionGame: function() {
+    this.displayText(
+      '<div class="big">~ HOW TO PLAY ~</div>' +
+      'You will see bubbles going down with the following letters on them (' + this.options.keys.toString() + ')<br/>' +
+      'and a green zone at the bottom of your screen.<br/>' +
+      'The goal is to hit the key of each bubble at the moment this bubble is on the green zone.<br/>' +
+      'You can pause at any time using the ESC key.<br/>' +
+      '(Note that the difficulty will adjust to your performance)<br/>' +
+      'Get ready by putting your finger on the right keys!<br/>' +
+      'Good luck!<br/>' + 
+      '<div class="big">Hit ESC to start</div>');
+  },
+
+  startGame: function () {
     if (!this.started && !this.ended) {
       this.started = true;
       this.layout();
@@ -227,7 +241,11 @@ var Game = Backbone.View.extend({
   pauseGame: function () {
     if (this.started && !this.ended) {
       window.clearInterval(this.interval);
-      this.displayText('~ PAUSE ~<br/>(ESC to continue)');
+      this.displayText(
+      '<div class="big">~ PAUSE ~</div>' +
+      '(ESC to continue)<br/><br/>' +
+      '(Keys in game: ' + this.options.keys.toString() + ')'
+      );
       this.started = false;
       this.pausedTime = new Date();
     }
@@ -236,7 +254,7 @@ var Game = Backbone.View.extend({
   endGame: function () {
     if (this.started) {
       window.clearInterval(this.interval);
-      this.displayText('~ END OF TRAINING ~');
+      this.displayText('<div class="big">~ END OF GAME ~<div>');
       this.ended = true;
       this.endedTime = new Date();
       this.sendResponses();
@@ -280,7 +298,7 @@ var Game = Backbone.View.extend({
       if (this.started) {
         return this.pauseGame();
       } else {
-        return this.start();
+        return this.startGame();
       }
     }
     if (!this.started) {
@@ -488,12 +506,12 @@ var Game = Backbone.View.extend({
     this.breakTime = this.breakTime - this.options.interval;
     if (this.breakTime > 0)
       this.displayText(
-        "~ BREAK ~<br/>" + 
-        "Time Left: " + 
-        Math.round(this.breakTime / 60000) + ":" + 
+        '<div class="big">~ BREAK ~</div><br/>' + 
+        'Time Left: ' + 
+        Math.round(this.breakTime / 60000) + ':' + 
         ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0) + 
-        "<br/>" +
-        "(Will be in paused state after this period)"
+        '<br/>' +
+        '(Will be in paused state after this period)'
         );
     else {
       this.breakStarted = false;
