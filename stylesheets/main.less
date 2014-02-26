@@ -175,10 +175,48 @@ body.has-controller-bar {
   text-align: center;
   font-weight: bold;
   color: white;
+  background: -webkit-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
+  background: -moz-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
+  background: -o-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
+  background: radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
   &.has-been-hit {
     box-shadow: 0px 0px 16px white;
     .transform(rotateY(80deg),scale(0.2));
   }
+}
+
+.bubble:before {
+  content: "";
+  position: absolute;
+  top: 1%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  background: -webkit-gradient(radial, 50% 0px, 0, 50% 0px, 58, color-stop(0%, rgba(255, 255, 255, .5)), color-stop(58%, rgba(255, 255, 255, 0)));
+  background: -webkit-radial-gradient(50% 0px, circle cover, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 58%);
+  background: -moz-radial-gradient(50% 0px, circle cover, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 58%);
+  background: -o-radial-gradient(50% 0px, circle cover, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 58%);
+  background: radial-gradient(50% 0px, circle cover, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 58%);
+  -webkit-filter: blur(5px);
+  z-index: 2;
+}
+
+.bubble .shadow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: -webkit-gradient(radial, 50% 50%, 0, 50% 50%, 50, color-stop(0%, rgba(0, 0, 0, 0.4)), color-stop(40%, rgba(0, 0, 0, 0.1)), color-stop(50%, rgba(0, 0, 0, 0)));
+  background: -webkit-radial-gradient(50% 50%, circle cover, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0) 50%);
+  background: -moz-radial-gradient(50% 50%, circle cover, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0) 50%);
+  background: -o-radial-gradient(50% 50%, circle cover, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0) 50%);
+  background: radial-gradient(50% 50%, circle cover, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0) 50%);
+  -webkit-transform: rotateX(90deg) translateZ(-150px);
+  -moz-transform: rotateX(90deg) translateZ(-150px);
+  -ms-transform: rotateX(90deg) translateZ(-150px);
+  -o-transform: rotateX(90deg) translateZ(-150px);
+  transform: rotateX(90deg) translateZ(-150px);
+  z-index: -1;
 }
 
 .circle {

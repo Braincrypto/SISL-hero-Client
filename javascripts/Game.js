@@ -730,7 +730,7 @@ var Game = Backbone.View.extend({
             fontSize: that.options.letterSize * r,
             width: r*2,
             height: r*2,
-            backgroundColor: d.color
+            backgroundColor: d.color          
           });
 
           if (that.options.showLetters) {
@@ -743,8 +743,10 @@ var Game = Backbone.View.extend({
           
           return r;
         })
-        .style('opacity', 1e-3);
-    
+        .style('opacity', 1e-3)
+        .append('span')
+          .attr('class', 'shadow');
+
     // Update
     bubbles
       .attr('data-r', function (d, i) {
