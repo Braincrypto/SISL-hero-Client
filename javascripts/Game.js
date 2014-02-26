@@ -1,7 +1,7 @@
 var Game = Backbone.View.extend({
   className: 'goals-timeline',
 
-  template: 
+  sceneTemplate: _.template( 
     '<div class="scene">' +
       '<div class="ground">' +
         '<svg width="0" height="0">' +
@@ -19,14 +19,14 @@ var Game = Backbone.View.extend({
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="#8dc63f"/>' +
-              '<stop offset="80%" stop-color="#8dc63f"/>' +
+              '<stop offset="20%" stop-color="<%= green %>"/>' +
+              '<stop offset="80%" stop-color="<%= green %>"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-bad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="#D00000" stop-opacity="0.3"/>' +
-              '<stop offset="80%" stop-color="#D00000" stop-opacity="0.3"/>' +
+              '<stop offset="20%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
+              '<stop offset="80%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '</defs>' +
@@ -36,7 +36,7 @@ var Game = Backbone.View.extend({
         '</svg>' +
       '</div>' +
     '</div>' +
-    '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>',
+    '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>'),
 
   // #################
   // Runtime variables
@@ -85,6 +85,9 @@ var Game = Backbone.View.extend({
     // ### Bubbles
     // - color (init later)
     bubbleColor: [],
+    circleSize: 5,
+    goodColor: '#8dc63f',
+    badColor: '#D00000',
 
     // - letter
     showLetters: false,
@@ -131,9 +134,9 @@ var Game = Backbone.View.extend({
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
-    this.$el.html(that.template);
+    this.$el.html(this.sceneTemplate({green: this.options.goodColor, red: this.options.badColor}));
     this.displayText('~ LOADING ~');
-    
+   
     this.loadParam(function () {
       that.setup();
       that.layout();
@@ -365,14 +368,14 @@ var Game = Backbone.View.extend({
       this.combo.push(0);
     }
 
-
+    keyNum = this.options.keys.indexOf(key);
     // add response to buffer
     this.responses.push({
       eventType: 'press-key',
       eventTimestamp: this.date.getTime(),
       speedFactor: this.speedFactor,
       speedChange: 0,
-      key: this.options.keys.indexOf(key) + 1,
+      key: keyNum + 1,
       hit: bestBubble.beenHit,
       offset: bestOffset,
       closestKey: bestBubble.keyNumber + 1,
@@ -380,7 +383,7 @@ var Game = Backbone.View.extend({
     });
     
     // give visual feeback
-    this.feedback(bestBubble.beenHit);
+    this.feedback(keyNum, bestBubble.beenHit);
   },
 
   addMoreBubbles: function () {
@@ -581,22 +584,9 @@ var Game = Backbone.View.extend({
   // #### Rendering #####
   // ####################
 
-  layout: function () {
-    var
-      w = this.$el.width() || 848,
-      h = this.$el.height() || 518,
-      s = Math.min(w, h);
-
-    this.xScale
-      .range([0, w]);
-
-    this.yScale
-      .range([h*0.05, h]);
-
-    d3.select(this.el).select('.ground').select('svg')
-      .attr('width', w)
-      .attr('height', h);
-  },
+  // --------------------
+  // --- Dynamic Rendering
+  // --------------------
   
   interpretData: function () {
     this.timeScale
@@ -618,17 +608,24 @@ var Game = Backbone.View.extend({
     this.$el.removeClass('paused');
   },
 
-  feedback: function(answer) {
+  feedback: function(numKey, answer) {
     var that = this;
-    that.feedbackDate = new Date(new Date().getTime() + that.options.accuracyRange);
-    that.feedbackOn = true;
+    this.feedbackDate = new Date(new Date().getTime() + this.options.accuracyRange);
+    this.feedbackOn = true;
+    this.feedbackKey = numKey;
+    
+    var fill = 'url(#target-zone-grad-bad)';
+    var circle = this.options.badColor;
+    if (answer) {
+      fill = 'url(#target-zone-grad-good)';
+      circle = this.options.goodColor;
+    }
+
     d3.select(this.el).select('.target')
-      .style('fill', function () {
-        if (answer) {
-          return 'url(#target-zone-grad-good)';
-        } else {
-         return 'url(#target-zone-grad-bad)';
-        }
+      .style('fill', fill);
+    d3.select(this.el).selectAll('.circle')
+      .style('border-color', function (d) {
+        return d === numKey? circle: that.options.bubbleColor[d];
       });
   },
 
@@ -638,70 +635,15 @@ var Game = Backbone.View.extend({
       d3.select(this.el).select('.target')
         .style('fill', function () {
           return 'url(#target-zone-grad)';
-        });      
-      that.feedbackOn = false;
+        });
+      d3.select(this.el).selectAll('.circle')
+        .style('border-color',  function (d) {
+          return that.options.bubbleColor[d];
+        });
+      this.feedbackOn = false;
     }
   },
 
-  renderStatic: function() {
-    this.interpretData();
-    var that = this;
-    
-    d3.select(this.el).select('.grass')
-      .attr('d', function () {
-        var
-          near = 1/that.projectionScale.range()[0],
-          far = 1/that.projectionScale.range()[1];
-
-        return (
-          'M ' + that.xScale(-1*far) + ',' + that.yScale(far) + ' ' +
-          'L ' + that.xScale( 1*far) + ',' + that.yScale(far) + ' ' +
-          'L ' + that.xScale( 1*near) + ',' + that.yScale(near) + ' ' +
-          'L ' + that.xScale(-1*near) + ',' + that.yScale(near) + ' ' +
-          'z'
-        );
-      });    
-
-    d3.select(this.el).select('.target')
-      .attr('d', function () {
-        var
-          zfar = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset + that.options.accuracyRange)),
-          znear = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + that.options.accuracyOffset - that.options.accuracyRange)),
-          far = 1 / that.projectionScale(zfar);
-          near = 1 / that.projectionScale(znear);
- 
-        return (
-          'M ' + that.xScale(-1*far) + ',' + that.yScale(far) + ' ' +
-          'L ' + that.xScale( 1*far) + ',' + that.yScale(far) + ' ' +
-          'L ' + that.xScale( 1*near) + ',' + that.yScale(near) + ' ' +
-          'L ' + that.xScale(-1*near) + ',' + that.yScale(near) + ' ' +
-          'z'
-        );
-      });    
-
-
-    d3.select(this.el).select('.verticals')
-      .attr('d', function () {
-        var
-          near = 1/that.projectionScale.range()[0],
-          far = 1/that.projectionScale.range()[1],
-          delta = 2/(that.options.keys.length + 1 + that.options.middlePadding)
-          segs = [];
-
-        for(var i = 1; i <= that.options.keys.length / 2; i++) {
-          segs.push(
-            'M ' + that.xScale(far * (-1 + i * delta) ) + ',' + that.yScale(far) + ' ' +
-            'L ' + that.xScale(near * (-1 + i * delta) ) + ',' + that.yScale(near)
-          );
-          segs.push(
-            'M ' + that.xScale(far * (1 - i * delta) ) + ',' + that.yScale(far) + ' ' +
-            'L ' + that.xScale(near * (1 - i * delta) ) + ',' + that.yScale(near)
-          );
-         }
-
-        return segs.join(' ');
-      });
-  },
 
   renderGround: function () {
     var
@@ -724,7 +666,6 @@ var Game = Backbone.View.extend({
 
     markers
       .style('opacity', function (d) {
-        var
           z = that.timeScale(d),
           p = 1 / that.projectionScale(z);
         return that.markerOpacityScale(z);
@@ -757,7 +698,8 @@ var Game = Backbone.View.extend({
         return (p*35) + 'px';
       });
 
-    markers.exit()
+    markers
+      .exit()
       .remove();
   },
 
@@ -802,7 +744,7 @@ var Game = Backbone.View.extend({
           return r;
         })
         .style('opacity', 1e-3);
-
+    
     // Update
     bubbles
       .attr('data-r', function (d, i) {
@@ -868,6 +810,134 @@ var Game = Backbone.View.extend({
 
     // Exit
     bubbles
+      .exit()
+      .remove();
+  },
+
+  // --------------------
+  // --- Static Rendering
+  // --------------------
+
+  renderStatic: function() {
+    this.interpretData();
+    this.renderGrass();
+    this.renderVerticals();
+    this.renderTarget();
+    this.renderCircles();
+  },
+  
+  layout: function () {
+    var
+      w = this.$el.width() || 848,
+      h = this.$el.height() || 518,
+      s = Math.min(w, h);
+
+    this.xScale
+      .range([0, w]);
+
+    this.yScale
+      .range([h*0.05, h]);
+
+    d3.select(this.el).select('.ground').select('svg')
+      .attr('width', w)
+      .attr('height', h);
+  }, 
+  
+  renderGrass: function() {
+    var
+      near = 1/this.projectionScale.range()[0],
+      far = 1/this.projectionScale.range()[1];
+      path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
+             'L ' + this.xScale( 1*far) + ',' + this.yScale(far) + ' ' +
+             'L ' + this.xScale( 1*near) + ',' + this.yScale(near) + ' ' +
+             'L ' + this.xScale(-1*near) + ',' + this.yScale(near) + ' ' +
+             'z';
+
+    d3.select(this.el).select('.grass')
+      .attr('d', path);    
+  },
+
+  renderVerticals: function() {
+    var
+      near = 1/this.projectionScale.range()[0],
+      far = 1/this.projectionScale.range()[1],
+      delta = 2/(this.options.keys.length + 1 + this.options.middlePadding)
+      segs = [];
+
+    for(var i = 1; i <= this.options.keys.length / 2; i++) {
+      segs.push(
+        'M ' + this.xScale(far * (-1 + i * delta) ) + ',' + this.yScale(far) + ' ' +
+        'L ' + this.xScale(near * (-1 + i * delta) ) + ',' + this.yScale(near)
+      );
+      segs.push(
+        'M ' + this.xScale(far * (1 - i * delta) ) + ',' + this.yScale(far) + ' ' +
+        'L ' + this.xScale(near * (1 - i * delta) ) + ',' + this.yScale(near)
+      );
+    }
+
+    d3.select(this.el).select('.verticals')
+      .attr('d', segs.join(' '));
+  },
+
+  renderTarget: function() {
+    var
+      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.options.accuracyOffset + this.options.accuracyRange)),
+      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.options.accuracyOffset - this.options.accuracyRange)),
+      far = 1 / this.projectionScale(zfar),
+      near = 1 / this.projectionScale(znear),
+      path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
+             'L ' + this.xScale( 1*far) + ',' + this.yScale(far) + ' ' +
+             'L ' + this.xScale( 1*near) + ',' + this.yScale(near) + ' ' +
+             'L ' + this.xScale(-1*near) + ',' + this.yScale(near) + ' ' +
+             'z';
+ 
+    d3.select(this.el).select('.target')
+      .attr('d', path);
+  },
+
+  renderCircles: function () {
+    var
+      that = this,
+      opts = this.options,
+      division = 2 / (opts.keys.length + 1 + opts.middlePadding),
+      z =  that.timeScale(new Date(that.timeScale.domain()[0].getTime() + opts.accuracyOffset)),
+      p = 1 / that.projectionScale(z),
+      r = Math.max(~~(opts.maxBubbleSize * p), 0.01) + opts.circleSize,
+      circles;
+    
+    // Data
+    circles = d3.select(this.el).selectAll('.circle')
+      .data(_.range(this.options.keys.length));
+    
+    // Enter
+    circles.enter()
+      .append('div');
+
+    // Update
+    circles
+      .attr('class', 'circle')
+      .style({
+        'border-width': opts.circleSize + 'px',
+        'width': r*2 + 'px',
+        'height': r*2 + 'px',
+        'z-index': that.zIndexScale(z),
+        'top': that.yScale(p) + 'px',
+        'margin-top': -r*2 + 'px',
+        'margin-left': -r + 'px'
+      })
+      .style('border-color', function (d) {
+        return opts.bubbleColor[d];
+      })
+      .style('left', function (d) {
+          if (d < (that.options.keys.length / 2))
+            c = -1 + (d + 1) * division;
+          else
+            c = 1 - (that.options.keys.length - d) * division;
+        return that.xScale(c*p) + 'px';
+      })
+ 
+    // Exit
+    circles
       .exit()
       .remove();
   },
