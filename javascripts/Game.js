@@ -38,6 +38,37 @@ var Game = Backbone.View.extend({
     '</div>' +
     '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>'),
 
+  instructionTemplate: _.template(
+    '<div class="big">~ HOW TO PLAY ~</div>' +
+    'You will see bubbles going down with the following letters on them ( <%= keys %> )<br/>' +
+    'and a green zone at the bottom of your screen.<br/>' +
+    'The goal is to hit the key of each bubble at the moment this bubble is on the green zone.<br/>' +
+    'You can pause at any time using the ESC key.<br/>' +
+    '(Note that the difficulty will adjust to your performance)<br/>' +
+    'Get ready by putting your finger on the right keys!<br/>' +
+    'Good luck!<br/>' + 
+    '<div class="big">Hit ESC to start</div>'
+  ),
+
+  breakTemplate: _.template(
+    '<div class="big">~ BREAK ~</div><br/>' + 
+    'Time Left: ' + 
+    '<%= minutes %>:' + 
+    '<%= seconds %>:' + 
+    '<br/>' +
+    '(Will be in paused state after this period)'
+  ),
+
+  pauseTemplate: _.template(
+    '<div class="big">~ PAUSE ~</div>' +
+    '(ESC to continue)<br/><br/>' +
+    '(Keys in game: <%= keys %> )'
+  ),
+
+  endTemplate: _.template('<div class="big">~ END OF GAME ~<div>'),
+  
+  loadingTemplate: _.template('<div class="big">~ LOADING GAME ~<div>'),
+
   // #################
   // Runtime variables
   // #################
@@ -83,11 +114,12 @@ var Game = Backbone.View.extend({
     slowDownDec: -0.05,
 
     // ### Bubbles
-    // - color (init later)
+    // - size & color (init later)
     bubbleColor: [],
     circleSize: 5,
     goodColor: '#8dc63f',
     badColor: '#D00000',
+    ratioBubble: 10,
 
     // - letter
     showLetters: false,
@@ -113,7 +145,6 @@ var Game = Backbone.View.extend({
     // ### Design
     numMarkers: 12,
     middlePadding: .5,
-    maxBubbleSize: 100,
 
     // ### Time
     baseTimeToShow: 6000, // 6 seconds
@@ -135,7 +166,7 @@ var Game = Backbone.View.extend({
     this.$window = $(window);
     this.$body = $('body');
     this.$el.html(this.sceneTemplate({green: this.options.goodColor, red: this.options.badColor}));
-    this.displayText('~ LOADING ~');
+    this.displayText(_.loadingTemplate);
    
     this.loadParam(function () {
       that.setup();
@@ -215,16 +246,7 @@ var Game = Backbone.View.extend({
   // ################
   
   instructionGame: function() {
-    this.displayText(
-      '<div class="big">~ HOW TO PLAY ~</div>' +
-      'You will see bubbles going down with the following letters on them (' + this.options.keys.toString() + ')<br/>' +
-      'and a green zone at the bottom of your screen.<br/>' +
-      'The goal is to hit the key of each bubble at the moment this bubble is on the green zone.<br/>' +
-      'You can pause at any time using the ESC key.<br/>' +
-      '(Note that the difficulty will adjust to your performance)<br/>' +
-      'Get ready by putting your finger on the right keys!<br/>' +
-      'Good luck!<br/>' + 
-      '<div class="big">Hit ESC to start</div>');
+    this.displayText(this.instructionTemplate({keys: this.options.keys.toString()}));
   },
 
   startGame: function () {
@@ -244,11 +266,7 @@ var Game = Backbone.View.extend({
   pauseGame: function () {
     if (this.started && !this.ended) {
       window.clearInterval(this.interval);
-      this.displayText(
-      '<div class="big">~ PAUSE ~</div>' +
-      '(ESC to continue)<br/><br/>' +
-      '(Keys in game: ' + this.options.keys.toString() + ')'
-      );
+      this.displayText(this.pauseTemplate({keys: this.options.keys.toString()}));
       this.started = false;
       this.pausedTime = new Date();
     }
@@ -257,7 +275,7 @@ var Game = Backbone.View.extend({
   endGame: function () {
     if (this.started) {
       window.clearInterval(this.interval);
-      this.displayText('<div class="big">~ END OF GAME ~<div>');
+      this.displayText(this.endTemplate);
       this.ended = true;
       this.endedTime = new Date();
       this.sendResponses();
@@ -508,14 +526,10 @@ var Game = Backbone.View.extend({
   breakUpdate: function() {
     this.breakTime = this.breakTime - this.options.interval;
     if (this.breakTime > 0)
-      this.displayText(
-        '<div class="big">~ BREAK ~</div><br/>' + 
-        'Time Left: ' + 
-        Math.round(this.breakTime / 60000) + ':' + 
-        ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0) + 
-        '<br/>' +
-        '(Will be in paused state after this period)'
-        );
+      this.displayText(breakTemplate({
+        minutes: Math.round(this.breakTime / 60000), 
+        seconds: ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0)
+      }));
     else {
       this.breakStarted = false;
       this.removeText();
@@ -723,7 +737,7 @@ var Game = Backbone.View.extend({
           var
             z = that.timeScale(d.date),
             p = 1 / that.projectionScale(z),
-            r = that.options.maxBubbleSize * p,
+            r = that.maxBubbleSize * p,
             $this = $(this);
           this.$this = $this;
           $this.css({
@@ -753,7 +767,7 @@ var Game = Backbone.View.extend({
         var
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = Math.max(~~(that.options.maxBubbleSize * p), 0.01);
+          r = Math.max(~~(that.maxBubbleSize * p), 0.01);
 
           this.$this.css({
             fontSize: r,
@@ -779,7 +793,7 @@ var Game = Backbone.View.extend({
         var
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = that.options.maxBubbleSize * p;
+          r = that.maxBubbleSize * p;
         return that.yScale(p) + 'px';
       })
       .style('left', function (d, i) {
@@ -787,7 +801,7 @@ var Game = Backbone.View.extend({
           division = 2 / (that.options.keys.length + 1 + that.options.middlePadding),
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = that.options.maxBubbleSize * p;
+          r = that.maxBubbleSize * p;
           if (d.keyNumber < (that.options.keys.length / 2))
             c = -1 + (d.keyNumber + 1) * division;
           else
@@ -798,14 +812,14 @@ var Game = Backbone.View.extend({
         var
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = that.options.maxBubbleSize * p;
+          r = that.maxBubbleSize * p;
         return -r*2 + 'px';
       })
       .style('margin-left', function (d) {
         var
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = that.options.maxBubbleSize * p;
+          r = that.maxBubbleSize * p;
         return -r + 'px';
       });
 
@@ -838,11 +852,13 @@ var Game = Backbone.View.extend({
       .range([0, w]);
 
     this.yScale
-      .range([h*0.05, h]);
+      .range([-h*0.1, h]);
 
     d3.select(this.el).select('.ground').select('svg')
       .attr('width', w)
       .attr('height', h);
+    
+    this.maxBubbleSize = w / (2*this.options.ratioBubble);
   }, 
   
   renderGrass: function() {
@@ -904,7 +920,7 @@ var Game = Backbone.View.extend({
       division = 2 / (opts.keys.length + 1 + opts.middlePadding),
       z =  that.timeScale(new Date(that.timeScale.domain()[0].getTime() + opts.accuracyOffset)),
       p = 1 / that.projectionScale(z),
-      r = Math.max(~~(opts.maxBubbleSize * p), 0.01) + opts.circleSize,
+      r = Math.max(~~(this.maxBubbleSize * p), 0.01) + opts.circleSize,
       circles;
     
     // Data
@@ -913,11 +929,27 @@ var Game = Backbone.View.extend({
     
     // Enter
     circles.enter()
-      .append('div');
+      .append('div')
+      .attr('class', 'circle')
+      .append('div')
+      .attr('class', 'text')
+      .style('border-width', opts.circleSize + 'px')
+      .style('border-color', function (d) {
+        return opts.bubbleColor[d];
+      })
+      .classed('right', function (d) {
+        return d+1 > opts.keys.length/2
+      })
+      .classed('left', function (d) {
+        return d+1 <= opts.keys.length/2
+      })
+      .text(function(d) {
+        return opts.keys[d];
+      });
+      
 
     // Update
     circles
-      .attr('class', 'circle')
       .style({
         'border-width': opts.circleSize + 'px',
         'width': r*2 + 'px',
@@ -931,13 +963,17 @@ var Game = Backbone.View.extend({
         return opts.bubbleColor[d];
       })
       .style('left', function (d) {
-          if (d < (that.options.keys.length / 2))
+          if (d < (opts.keys.length / 2))
             c = -1 + (d + 1) * division;
           else
-            c = 1 - (that.options.keys.length - d) * division;
+            c = 1 - (opts.keys.length - d) * division;
         return that.xScale(c*p) + 'px';
       })
- 
+      .selectAll('.text')
+        .style('font-size', function() {
+          return (r/5) + 'px';
+        });
+
     // Exit
     circles
       .exit()
