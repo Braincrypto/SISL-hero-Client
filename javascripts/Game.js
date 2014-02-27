@@ -40,9 +40,9 @@ var Game = Backbone.View.extend({
 
   instructionTemplate: _.template(
     '<div class="big">~ HOW TO PLAY ~</div>' +
-    'You will see bubbles going down with the following letters on them ( <%= keys %> )<br/>' +
-    'and a green zone at the bottom of your screen.<br/>' +
-    'The goal is to hit the key of each bubble at the moment this bubble is on the green zone.<br/>' +
+    'You will see bubbles going down with the following letters on them (<%= keys %>)<br/>' +
+    'and circles at the bottom of your screen.<br/>' +
+    'The goal is to hit the key of each bubble at the moment this bubble is the right circle.<br/>' +
     'You can pause at any time using the ESC key.<br/>' +
     '(Note that the difficulty will adjust to your performance)<br/>' +
     'Get ready by putting your finger on the right keys!<br/>' +
@@ -62,7 +62,7 @@ var Game = Backbone.View.extend({
   pauseTemplate: _.template(
     '<div class="big">~ PAUSE ~</div>' +
     '(ESC to continue)<br/><br/>' +
-    '(Keys in game: <%= keys %> )'
+    '(Keys in game: <%= keys %>)'
   ),
 
   endTemplate: _.template('<div class="big">~ END OF GAME ~<div>'),
