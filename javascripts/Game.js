@@ -54,7 +54,7 @@ var Game = Backbone.View.extend({
     '<div class="big">~ BREAK ~</div><br/>' + 
     'Time Left: ' + 
     '<%= minutes %>:' + 
-    '<%= seconds %>:' + 
+    '<%= seconds %>' + 
     '<br/>' +
     '(Will be in paused state after this period)'
   ),
@@ -168,7 +168,7 @@ var Game = Backbone.View.extend({
     this.$window = $(window);
     this.$body = $('body');
     this.$el.html(this.sceneTemplate({green: this.options.goodColor, red: this.options.badColor}));
-    this.displayText(_.loadingTemplate);
+    this.displayText(this.loadingTemplate);
    
     this.loadParam(function () {
       that.setup();
@@ -529,7 +529,7 @@ var Game = Backbone.View.extend({
   breakUpdate: function() {
     this.breakTime = this.breakTime - this.options.interval;
     if (this.breakTime > 0)
-      this.displayText(breakTemplate({
+      this.displayText(this.breakTemplate({
         minutes: Math.round(this.breakTime / 60000), 
         seconds: ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0)
       }));
