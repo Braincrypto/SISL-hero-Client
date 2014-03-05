@@ -156,7 +156,7 @@ var Game = Backbone.View.extend({
     baseAccuracyOffset: 100,
     
     // ### Other
-    score: 2500,
+    score: 100,
   },
 
   events: {
@@ -353,8 +353,6 @@ var Game = Backbone.View.extend({
 
   processKeyHit: function (key) {
     var current = new Date().getTime() + this.accuracyOffset,
-      high = current + this.accuracyRange,
-      low = current - this.accuracyRange,
       bestBubble = false,
       offset,
       bestOffset,
