@@ -194,6 +194,8 @@ var Game = Backbone.View.extend({
     console.log(this.options.endPoint + '/user/' + this.options.token + '/challenge');
     jQuery.getJSON(this.options.endPoint + '/user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
+      console.log(data.interval);
+      console.log(that.options.interval);
     })
     .done(function() {
       console.log('Data successfully received!'); 
@@ -382,6 +384,7 @@ var Game = Backbone.View.extend({
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
 
+      this.bubbleEvent();
       this.combo.push(1);
     } else {
       this.combo.push(0);
@@ -681,38 +684,24 @@ var Game = Backbone.View.extend({
         .style('opacity', 0);
 
     markers
-      .style('opacity', function (d) {
-          z = that.timeScale(d),
-          p = 1 / that.projectionScale(z);
-        return that.markerOpacityScale(z);
-      })
-      .style('z-index', function (date, i, a) {
-        return that.zIndexScale(that.timeScale(date)) - 10;
-      })
-      .style('top', function (d) {
+      .each(function(d) {
         var
           z = that.timeScale(d),
           p = 1 / that.projectionScale(z);
-        return that.yScale(p) + 'px';
-      })
-      .style('left', function (d) {
-        var
-          z = that.timeScale(d),
-          p = 1 / that.projectionScale(z);
-        return that.xScale(-1*p) + 'px';
-      })
-      .style('right', function (d) {
-        var
-          z = that.timeScale(d),
-          p = 1 / that.projectionScale(z);
-        return (that.xScale.range()[1] - that.xScale(p)) + 'px';
-      })
-      .style('font-size', function (d) {
-        var
-          z = that.timeScale(d),
-          p = 1 / that.projectionScale(z);
-        return (p*35) + 'px';
-      });
+          node = d3.select(this);
+        node
+          .transition()
+          .duration(opts.interval)
+          .ease('linear')
+          .style({
+            'opacity': that.markerOpacityScale(z),
+            'z-index': that.zIndexScale(z) - 10,
+            'top': that.yScale(p) + 'px',
+            'left': that.xScale(-1*p) + 'px',
+            'right': (that.xScale.range()[1] - that.xScale(p)) + 'px',
+            'font-size': (p*35) + 'px',
+          })
+      });  
 
     markers
       .exit()
@@ -735,101 +724,80 @@ var Game = Backbone.View.extend({
     bubbles.enter()
       .append('div')
         .attr('class', 'bubble')
-        .attr('data-r', function (d) {
+        .each(function (d) {
           var
             z = that.timeScale(d.date),
             p = 1 / that.projectionScale(z),
             r = that.maxBubbleSize * p,
-            $this = $(this);
-          this.$this = $this;
-          $this.css({
-            fontSize: that.options.letterSize * r,
-            width: r*2,
-            height: r*2,
-            backgroundColor: d.color          
-          });
+            node = d3.select(this);
 
-          if (that.options.showLetters) {
-            this.textContent = d.key;
-            $this.css({
-              color: that.options.letterColor,
+          node.style({
+              'font-size': that.options.letterSize * r + 'px',
+              'width': r*2 + 'px',
+              'height': r*2 + 'px',
+              'background-color': d.color,
+              'opacity': 0,        
             });
           
+          if (that.options.showLetters) {
+            this.textContent = d.key;
+            node.style({
+              color: that.options.letterColor,
+            });
           }
           
           return r;
         })
-        .style('opacity', 1e-3)
         .append('span')
           .attr('class', 'shadow');
 
     // Update
     bubbles
-      .attr('data-r', function (d, i) {
+      .each(function (d, i) {
         var
           z = that.timeScale(d.date),
           p = 1 / that.projectionScale(z),
-          r = Math.max(~~(that.maxBubbleSize * p), 0.01);
-
-          this.$this.css({
-            fontSize: r,
-            width: r*2,
-            height: r*2,
-          });
-          if (d.beenHit && !d.classAdded) {
-            d.classAdded = true;
-            this.$this.addClass('has-been-hit');
-          }
-          return r;
-      })
-      .style('opacity', function (d) {
-        var
-          z = that.timeScale(d.date),
-          p = 1 / that.projectionScale(z);
-        return that.opacityScale(z);
-      })
-      .style('z-index', function (d, i, a) {
-        return that.zIndexScale(that.timeScale(d.date));
-      })
-      .style('top', function (d) {
-        var
-          z = that.timeScale(d.date),
-          p = 1 / that.projectionScale(z),
-          r = that.maxBubbleSize * p;
-        return that.yScale(p) + 'px';
-      })
-      .style('left', function (d, i) {
-        var
+          r = Math.max(~~(that.maxBubbleSize * p), 0.01),
           division = 2 / (that.options.keys.length + 1 + that.options.middlePadding),
-          z = that.timeScale(d.date),
-          p = 1 / that.projectionScale(z),
-          r = that.maxBubbleSize * p;
+          c,
+          node = d3.select(this);
+          
+
           if (d.keyNumber < (that.options.keys.length / 2))
             c = -1 + (d.keyNumber + 1) * division;
           else
             c = 1 - (that.options.keys.length - d.keyNumber) * division;
-        return that.xScale(c*p) + 'px';
-      })
-      .style('margin-top', function (d) {
-        var
-          z = that.timeScale(d.date),
-          p = 1 / that.projectionScale(z),
-          r = that.maxBubbleSize * p;
-        return -r*2 + 'px';
-      })
-      .style('margin-left', function (d) {
-        var
-          z = that.timeScale(d.date),
-          p = 1 / that.projectionScale(z),
-          r = that.maxBubbleSize * p;
-        return -r + 'px';
+ 
+          node
+            .transition()
+            .duration(opts.interval)
+            .ease('linear')
+            .style({
+              'font-size': that.options.letterSize * r + 'px',
+              'width': r*2 + 'px',
+              'height': r*2 + 'px',
+              'opacity': that.opacityScale(z),
+              'z-index': that.zIndexScale(z),
+              'top': that.yScale(p) + 'px',
+              'left': that.xScale(c*p) + 'px',
+              'margin-top': -r*2 + 'px',
+              'margin-left': -r + 'px',
+            });
       });
-
 
     // Exit
     bubbles
       .exit()
       .remove();
+  },
+
+  bubbleEvent: function() {
+    bubbles = d3.select(this.el).selectAll('.bubble')
+
+    bubbles
+      .classed('has-been-hit', function(d, i) {
+        return d.beenHit;
+      });
   },
 
   // --------------------
