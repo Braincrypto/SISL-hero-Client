@@ -79,7 +79,9 @@ var Game = Backbone.View.extend({
   bubbleIndex: 0,
   speedFactor: 1,
   timeToShow: 6000, // 12 seconds
-
+  accuracyRange: 100,
+  accuracyOffset: 100,
+  
   // responses
   responses: [],
   batch: 0,
@@ -150,8 +152,8 @@ var Game = Backbone.View.extend({
     baseTimeToShow: 6000, // 6 seconds
     interval: 65,
     timeUnit: 1000,
-    accuracyRange: 100,
-    accuracyOffset: 100,
+    baseAccuracyRange: 100,
+    baseAccuracyOffset: 100,
     
     // ### Other
     score: 2500,
@@ -212,7 +214,7 @@ var Game = Backbone.View.extend({
     this.timeScale = d3.time.scale().range([0, 1]);
 
     this.scoreScale = d3.scale.sqrt()
-      .domain([this.options.accuracyRange, 0])
+      .domain([this.accuracyRange, 0])
       .rangeRound([0, this.options.score]);
 
     this.zIndexScale = d3.scale.linear()
@@ -337,7 +339,6 @@ var Game = Backbone.View.extend({
 
   refresh: function () {
     this.date = new Date();
-    this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
     if (this.breakStarted) {
       this.breakUpdate();
     } else {
@@ -351,9 +352,9 @@ var Game = Backbone.View.extend({
   },
 
   processKeyHit: function (key) {
-    var current = new Date().getTime() + this.options.accuracyOffset,
-      high = current + this.options.accuracyRange,
-      low = current - this.options.accuracyRange,
+    var current = new Date().getTime() + this.accuracyOffset,
+      high = current + this.accuracyRange,
+      low = current - this.accuracyRange,
       bestBubble = false,
       offset,
       bestOffset,
@@ -375,7 +376,7 @@ var Game = Backbone.View.extend({
     }
 
     // Update key if has been hit
-    if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.options.accuracyRange) {
+    if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.accuracyRange) {
       var score = this.scoreScale(bestDiff);
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
@@ -460,7 +461,7 @@ var Game = Backbone.View.extend({
 
   cleanData: function () {
     this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
-      var kept = bubble.date.getTime() + this.options.accuracyOffset + this.options.accuracyRange + 100 > this.date.getTime();
+      var kept = bubble.date.getTime() + this.accuracyOffset + this.accuracyRange + 100 > this.date.getTime();
       if (!kept) {
         // adjust combo
         this.combo.push(0);
@@ -483,12 +484,9 @@ var Game = Backbone.View.extend({
   },
   
   readjustSpeed: function() {
-    if (!this.options.adaptativeSpeed)
-      return 0;
-
-    // recompute speedFactor
     var speedChange = 0;
-    if(this.combo.length > this.options.comboWindow) {
+    // recompute speedFactor
+    if(this.options.adaptativeSpeed && this.combo.length > this.options.comboWindow) {
       var sum = 0;
       for(var i = 0; i < this.combo.length; i++)
         sum += this.combo[i];
@@ -506,6 +504,10 @@ var Game = Backbone.View.extend({
       this.speedFactor += speedChange;
       console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
     }
+    
+    this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
+    this.accuracyRange = this.options.baseAccuracyRange / this.speedFactor;
+    this.accuracyOffset = this.options.baseAccuracyOffset / this.speedFactor;
     return speedChange;
   },
 
@@ -624,7 +626,7 @@ var Game = Backbone.View.extend({
 
   feedback: function(numKey, answer) {
     var that = this;
-    this.feedbackDate = new Date(new Date().getTime() + this.options.accuracyRange);
+    this.feedbackDate = new Date(new Date().getTime() + this.accuracyRange);
     this.feedbackOn = true;
     this.feedbackKey = numKey;
     
@@ -899,8 +901,9 @@ var Game = Backbone.View.extend({
 
   renderTarget: function() {
     var
-      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.options.accuracyOffset + this.options.accuracyRange)),
-      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.options.accuracyOffset - this.options.accuracyRange)),
+      opts = this.options,
+      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset + opts.baseAccuracyRange)),
+      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset - opts.baseAccuracyRange)),
       far = 1 / this.projectionScale(zfar),
       near = 1 / this.projectionScale(znear),
       path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
@@ -918,7 +921,7 @@ var Game = Backbone.View.extend({
       that = this,
       opts = this.options,
       division = 2 / (opts.keys.length + 1 + opts.middlePadding),
-      z =  that.timeScale(new Date(that.timeScale.domain()[0].getTime() + opts.accuracyOffset)),
+      z =  that.timeScale(new Date(that.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset)),
       p = 1 / that.projectionScale(z),
       r = Math.max(~~(this.maxBubbleSize * p), 0.01) + opts.circleSize,
       circles;
