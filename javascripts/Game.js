@@ -194,8 +194,6 @@ var Game = Backbone.View.extend({
     console.log(this.options.endPoint + '/user/' + this.options.token + '/challenge');
     jQuery.getJSON(this.options.endPoint + '/user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
-      console.log(data.interval);
-      console.log(that.options.interval);
     })
     .done(function() {
       console.log('Data successfully received!'); 
@@ -689,13 +687,15 @@ var Game = Backbone.View.extend({
           z = that.timeScale(d),
           p = 1 / that.projectionScale(z);
           node = d3.select(this);
+        
         node
+          .style({'z-index': (that.zIndexScale(z) - 10),})
           .transition()
           .duration(opts.interval)
           .ease('linear')
           .style({
+            'position': 'absolute',
             'opacity': that.markerOpacityScale(z),
-            'z-index': that.zIndexScale(z) - 10,
             'top': that.yScale(p) + 'px',
             'left': that.xScale(-1*p) + 'px',
             'right': (that.xScale.range()[1] - that.xScale(p)) + 'px',
@@ -769,6 +769,7 @@ var Game = Backbone.View.extend({
             c = 1 - (that.options.keys.length - d.keyNumber) * division;
  
           node
+            .style({'z-index': that.zIndexScale(z),})
             .transition()
             .duration(opts.interval)
             .ease('linear')
@@ -777,7 +778,6 @@ var Game = Backbone.View.extend({
               'width': r*2 + 'px',
               'height': r*2 + 'px',
               'opacity': that.opacityScale(z),
-              'z-index': that.zIndexScale(z),
               'top': that.yScale(p) + 'px',
               'left': that.xScale(c*p) + 'px',
               'margin-top': -r*2 + 'px',
