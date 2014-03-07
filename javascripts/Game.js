@@ -80,8 +80,8 @@ var Game = Backbone.View.extend({
   bubbleIndex: 0,
   speedFactor: 1,
   timeToShow: 6000, // 6 seconds
-  accuracyRange: 100,
-  accuracyOffset: 100,
+  accuracyRange: 0,
+  accuracyOffset: 0,
   
   // responses
   responses: [],
@@ -154,7 +154,7 @@ var Game = Backbone.View.extend({
     interval: 65,
     timeUnit: 1000,
     baseAccuracyRange: 100,
-    baseAccuracyOffset: 100,
+    baseAccuracyOffset: 150,
     
     // ### Other
     score: 100,
@@ -214,10 +214,6 @@ var Game = Backbone.View.extend({
 
   setup: function () {
     this.timeScale = d3.time.scale().range([0, 1]);
-
-    this.scoreScale = d3.scale.sqrt()
-      .domain([this.accuracyRange, 0])
-      .rangeRound([0, this.options.score]);
 
     this.zIndexScale = d3.scale.linear()
       .domain([0, 1])
@@ -354,7 +350,8 @@ var Game = Backbone.View.extend({
   },
 
   processKeyHit: function (key) {
-    var current = new Date().getTime() + this.accuracyOffset,
+    // interval has to be added because the timeScale is one interval late
+    var current = new Date().getTime() + this.accuracyOffset - this.options.interval,
       bestBubble = false,
       offset,
       bestOffset,
@@ -375,11 +372,9 @@ var Game = Backbone.View.extend({
       }
     }
 
-    console.log(bestOffset);
-
     // Update key if has been hit
     if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.accuracyRange) {
-      var score = this.scoreScale(bestDiff);
+      var score = Math.round(this.options.score * Math.sqrt(1 - (bestDiff/this.accuracyRange)));
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
@@ -505,7 +500,8 @@ var Game = Backbone.View.extend({
       if(ratio < this.options.slowDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
         speedChange = this.options.slowDownDec;
 
-      this.speedFactor += speedChange;
+      this.speedFactor = Math.round((this.speedFactor + speedChange) * 100) / 100;
+      this.trigger('speed', {speed: this.speedFactor});
       console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
     }
     
@@ -615,6 +611,8 @@ var Game = Backbone.View.extend({
 
   render: function () {
     this.interpretData();
+    this.renderCircles();
+    this.renderTarget();
     this.renderGround();
     this.renderBubbles();
   },

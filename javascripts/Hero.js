@@ -3,7 +3,8 @@ var Hero = Backbone.View.extend({
     this.model = new Backbone.Model({
       start: new Date(),
       score: 0,
-      hits: 0
+      hits: 0,
+      speed: 1,
     });
     this.$body = $('body');
     
@@ -28,6 +29,7 @@ var Hero = Backbone.View.extend({
   
   attach: function () {
     this.listenTo(this.game, 'score', this.onGameScore);
+    this.listenTo(this.game, 'speed', this.onGameSpeed);
     if (this.controllerBar) {
       this.listenTo(this.controllerBar, 'press', this.onControllerBarPress);
     }
@@ -36,7 +38,13 @@ var Hero = Backbone.View.extend({
   onGameScore: function (evt) {
     this.model.set({
       score: this.model.get('score') + evt.score,
-      hits: this.model.get('hits') + 1
+      hits: this.model.get('hits') + 1,
+    });
+  },
+  
+  onGameSpeed: function (evt) {
+    this.model.set({
+      speed: evt.speed
     });
   },
 
