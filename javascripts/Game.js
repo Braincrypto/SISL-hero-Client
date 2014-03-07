@@ -36,7 +36,8 @@ var Game = Backbone.View.extend({
         '</svg>' +
       '</div>' +
     '</div>' +
-    '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>'),
+    '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>'
+  ),
 
   instructionTemplate: _.template(
     '<div class="big">~ HOW TO PLAY ~</div>' +
@@ -78,7 +79,7 @@ var Game = Backbone.View.extend({
   date: new Date(),
   bubbleIndex: 0,
   speedFactor: 1,
-  timeToShow: 6000, // 12 seconds
+  timeToShow: 6000, // 6 seconds
   accuracyRange: 100,
   accuracyOffset: 100,
   
@@ -174,6 +175,7 @@ var Game = Backbone.View.extend({
       that.setup();
       that.layout();
       that.attach();
+      that.adjustSpeed();
       that.renderStatic();
       that.render();
     });
@@ -236,7 +238,7 @@ var Game = Backbone.View.extend({
       .domain([0, 1]);
 
     this.projectionScale = d3.scale.linear()
-      .domain([-0.01, 1.0])
+      .domain([0, 1.0])
       .range([1.00, 10]);
 
     if (this.options.bubbleColor.length === 0)
@@ -373,6 +375,8 @@ var Game = Backbone.View.extend({
       }
     }
 
+    console.log(bestOffset);
+
     // Update key if has been hit
     if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.accuracyRange) {
       var score = this.scoreScale(bestDiff);
@@ -430,7 +434,7 @@ var Game = Backbone.View.extend({
 
   createBubble: function (id, i, date) {
     // adjust speed
-    var speedChange = this.readjustSpeed();
+    var speedChange = this.adjustSpeed();
 
     // create bubble
     var newBubble = {
@@ -463,7 +467,8 @@ var Game = Backbone.View.extend({
       var kept = bubble.date.getTime() + this.accuracyOffset + this.accuracyRange + 100 > this.date.getTime();
       if (!kept) {
         // adjust combo
-        this.combo.push(0);
+        if(!bubble.beenHit)
+          this.combo.push(0);
 
         // push event disappeared
         this.responses.push({
@@ -482,7 +487,7 @@ var Game = Backbone.View.extend({
     }, this);
   },
   
-  readjustSpeed: function() {
+  adjustSpeed: function() {
     var speedChange = 0;
     // recompute speedFactor
     if(this.options.adaptativeSpeed && this.combo.length > this.options.comboWindow) {
@@ -659,7 +664,6 @@ var Game = Backbone.View.extend({
     }
   },
 
-
   renderGround: function () {
     var
       that = this,
@@ -743,8 +747,6 @@ var Game = Backbone.View.extend({
               color: that.options.letterColor,
             });
           }
-          
-          return r;
         })
         .append('span')
           .attr('class', 'shadow');
@@ -760,7 +762,6 @@ var Game = Backbone.View.extend({
           c,
           node = d3.select(this);
           
-
           if (d.keyNumber < (that.options.keys.length / 2))
             c = -1 + (d.keyNumber + 1) * division;
           else
@@ -868,8 +869,8 @@ var Game = Backbone.View.extend({
   renderTarget: function() {
     var
       opts = this.options,
-      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset + opts.baseAccuracyRange)),
-      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset - opts.baseAccuracyRange)),
+      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.accuracyOffset + this.accuracyRange)),
+      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.accuracyOffset - this.accuracyRange)),
       far = 1 / this.projectionScale(zfar),
       near = 1 / this.projectionScale(znear),
       path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
@@ -887,7 +888,7 @@ var Game = Backbone.View.extend({
       that = this,
       opts = this.options,
       division = 2 / (opts.keys.length + 1 + opts.middlePadding),
-      z =  that.timeScale(new Date(that.timeScale.domain()[0].getTime() + opts.baseAccuracyOffset)),
+      z = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + this.accuracyOffset)),
       p = 1 / that.projectionScale(z),
       r = Math.max(~~(this.maxBubbleSize * p), 0.01) + opts.circleSize,
       circles;
