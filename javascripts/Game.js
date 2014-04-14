@@ -97,8 +97,7 @@ var Game = Backbone.View.extend({
   // ######################
   
   options: {
-    endPoint: 'http://127.0.0.1:5000',
-    //endPoint: 'http://stanford.edu/~ehrhardn/cgi-bin/server.cgi',
+    endPoint: 'api',
     
     // ### IDs
     token: 'default',
