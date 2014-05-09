@@ -97,7 +97,7 @@ var Game = Backbone.View.extend({
   // ######################
   
   options: {
-    endPoint: 'api',
+    endPoint: Config.endPoint,
     
     // ### IDs
     token: 'default',
