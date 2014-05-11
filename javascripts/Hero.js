@@ -51,11 +51,5 @@ var Hero = Backbone.View.extend({
   onControllerBarPress: function (evt) {
     this.game.processKeyHit(evt.key);
   },
-
-
 });
 
-$(function () {
-  window.hero = new Hero();
-  window.scrollTo(0,1);
-});
