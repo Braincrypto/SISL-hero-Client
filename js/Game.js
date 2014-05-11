@@ -100,7 +100,6 @@ var Game = Backbone.View.extend({
     endPoint: Config.endPoint,
     
     // ### IDs
-    token: 'default',
     stepNumber: 0,
 
     // ### responses
@@ -186,11 +185,6 @@ var Game = Backbone.View.extend({
     // perform sync call with ajax on cross domain using CORS
     jQuery.ajaxSetup({async:false});
 
-    this.options.token = decodeURI(
-      (RegExp('token=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
-    )
-    this.options.token = this.options.token.replace('/', '');
-    
     // get config file
     console.log(this.options.endPoint + '/user/' + this.options.token + '/challenge');
     jQuery.getJSON(this.options.endPoint + '/user/' + this.options.token + '/challenge', function(data) {
@@ -278,6 +272,7 @@ var Game = Backbone.View.extend({
       this.ended = true;
       this.endedTime = new Date();
       this.sendResponses();
+      this.trigger('end', true);
     }
   },
 
@@ -560,9 +555,9 @@ var Game = Backbone.View.extend({
         crossDomain: true,
         contentType: "application/json; charset=utf-8",
         dataType: "json",
-        url: this.options.endPoint + '/user/' + this.options.token + '/response',
+        url: this.options.endPoint + '/user/' + this.token + '/response',
         data: JSON.stringify({
-          token: this.options.token,
+          token: this.token,
           stepNumber: this.options.stepNumber,
           batchId: batchProcessed,
           end: this.ended,

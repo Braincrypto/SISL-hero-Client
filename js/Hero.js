@@ -7,14 +7,14 @@ var Hero = Backbone.View.extend({
       speed: 1,
     });
     this.$body = $('body');
-    
     this.build();
     this.attach();
   },
 
   build: function () {
     this.game = new Game({
-      el: $('.game')
+      el: $('.game'),
+      token: this.options.token,
     });
 
     this.scoreBar = new ScoreBar({
@@ -30,6 +30,8 @@ var Hero = Backbone.View.extend({
   attach: function () {
     this.listenTo(this.game, 'score', this.onGameScore);
     this.listenTo(this.game, 'speed', this.onGameSpeed);
+    this.listenTo(this.game, 'end', this.onEnd);
+    
     if (this.controllerBar) {
       this.listenTo(this.controllerBar, 'press', this.onControllerBarPress);
     }
@@ -51,5 +53,10 @@ var Hero = Backbone.View.extend({
   onControllerBarPress: function (evt) {
     this.game.processKeyHit(evt.key);
   },
+
+  onEnd: function (evt) {
+    if(this.callback)
+      this.callback();
+  }
 });
 

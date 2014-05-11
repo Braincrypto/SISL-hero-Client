@@ -6,23 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
     <meta content="utf-8" http-equiv="encoding">
-    <link rel="stylesheet/less" type="text/css" href="stylesheets/main.less" />
+    <link rel="stylesheet/less" type="text/css" href="less/main.less" />
 
-    <script src="javascripts/vendors/jquery-2.0.3.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/vendors/d3.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/vendors/underscore.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/vendors/backbone.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/vendors/less-1.4.1.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/lib/jquery-2.0.3.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/lib/d3.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/lib/underscore.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/lib/backbone.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/lib/less-1.4.1.min.js" type="text/javascript" charset="utf-8"></script>
 
-    <script src="javascripts/Config.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/Game.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/ControllerBar.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/ScoreBar.js" type="text/javascript" charset="utf-8"></script>
-    <script src="javascripts/Hero.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/Config.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/Game.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/ControllerBar.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/ScoreBar.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/Hero.js" type="text/javascript" charset="utf-8"></script>
 
     <script type="text/javascript">
       $(function () {
-        window.hero = new Hero();
+        var token = decodeURI(
+          (RegExp('token=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
+        )
+        token = token.replace('/', '');
+
+        console.log("token: " + token);
+        window.hero = new Hero({
+          token: token,
+          callback: null,
+        });
         window.scrollTo(0,1);
       });    
     </script>
