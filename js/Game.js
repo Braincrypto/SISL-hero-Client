@@ -245,6 +245,7 @@ var Game = Backbone.View.extend({
   startGame: function () {
     if (!this.started && !this.ended) {
       this.started = true;
+      this.startDate = new Date();
       this.layout();
       if (this.currentBubbles.length) {
         this.readjustBubbleDate();
@@ -382,15 +383,12 @@ var Game = Backbone.View.extend({
     keyNum = this.options.keys.indexOf(key);
     // add response to buffer
     this.responses.push({
-      eventType: 'press-key',
-      eventTimestamp: this.date.getTime(),
-      speedFactor: this.speedFactor,
-      speedChange: 0,
-      key: keyNum + 1,
-      hit: bestBubble.beenHit,
-      offset: bestOffset,
-      closestKey: bestBubble.keyNumber + 1,
-      queuePosition: bestBubble.id
+      cueId: bestBubble.id,
+      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventType: (bestBubble.beenHit ? 'press-hit' : 'press-key'),
+      eventValue: keyNum + 1,
+      eventDist: bestOffset,
+      eventSpeed: this.speedFactor,
     });
     
     // give visual feeback
@@ -437,15 +435,12 @@ var Game = Backbone.View.extend({
     
     // push event appeared
     this.responses.push({
-      eventType: 'bubble-appeared',
-      eventTimestamp: this.date.getTime(),
-      speedFactor: this.speedFactor,
-      speedChange: speedChange,
-      key: newBubble.keyNumber + 1,
-      hit: false,
-      offset: 0,
-      closestKey: 0,
-      queuePosition: newBubble.id
+      cueId: newBubble.id,
+      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventType: 'cue-created',
+      eventValue: newBubble.keyNumber + 1,
+      eventDist: 0,
+      eventSpeed: this.speedFactor,
     });
 
     return newBubble;
@@ -461,15 +456,12 @@ var Game = Backbone.View.extend({
 
         // push event disappeared
         this.responses.push({
-          eventType: 'bubble-disappeared',
-          eventTimestamp: this.date.getTime(),
-          speedFactor: this.speedFactor,
-          speedChange: 0,
-          key: bubble.keyNumber + 1,
-          hit: false,
-          offset: 0,
-          closestKey: 0,
-          queuePosition: bubble.id
+          cueId: bubble.id,
+          eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+          eventType: 'cue-disappear',
+          eventValue: bubble.keyNumber + 1,
+          eventDist: 0,
+          eventSpeed: this.speedFactor,
         });
       }
       return kept;
@@ -493,10 +485,21 @@ var Game = Backbone.View.extend({
 
       if(ratio < this.options.slowDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
         speedChange = this.options.slowDownDec;
-
-      this.speedFactor = Math.round((this.speedFactor + speedChange) * 100) / 100;
-      this.trigger('speed', {speed: this.speedFactor});
-      console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
+      
+      if(speedChange !== 0) {
+        this.responses.push({
+          cueId: -1,
+          eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+          eventType: 'speed-change',
+          eventValue: speedChange,
+          eventDist: 0,
+          eventSpeed: this.speedFactor,
+        });
+        
+        this.speedFactor = Math.round((this.speedFactor + speedChange) * 100) / 100;
+        this.trigger('speed', {speed: this.speedFactor});
+        console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
+      }
     }
     
     this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
@@ -555,9 +558,9 @@ var Game = Backbone.View.extend({
         crossDomain: true,
         contentType: "application/json; charset=utf-8",
         dataType: "json",
-        url: this.options.endPoint + '/user/' + this.token + '/response',
+        url: this.options.endPoint + '/user/' + this.options.token + '/response',
         data: JSON.stringify({
-          token: this.token,
+          token: this.options.token,
           stepNumber: this.options.stepNumber,
           batchId: batchProcessed,
           end: this.ended,
