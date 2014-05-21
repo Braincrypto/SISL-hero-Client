@@ -257,15 +257,14 @@ var Game = Backbone.View.extend({
     }
   },
 
-  pauseGame: function (title, text) {
-    if(typeof(title)==='undefined') title = 'PAUSE';
-    if(typeof(text)==='undefined') text = '';
+  pauseGame: function (obj) {
+    if(typeof(obj)==='undefined') obj = {title: 'PAUSE', test: ''};
 
     if (this.started && !this.ended) {
       window.clearInterval(this.interval);
       this.displayText(this.pauseTemplate({
-        title: title,
-        text: text,
+        title: obj.title,
+        text: obj.text,
         keys: this.options.keys.toString()
       }));
       this.started = false;
@@ -308,7 +307,6 @@ var Game = Backbone.View.extend({
   
   onWindowResize: function () {
     this.layout();
-    this.renderGround();
     this.renderStatic();
   },
 
@@ -346,6 +344,7 @@ var Game = Backbone.View.extend({
       this.clearFeedback();
       this.clearBubbles();
       this.processEvent();
+      this.updateTimeScale();
       this.renderDynamic();
     }
   },
@@ -542,6 +541,11 @@ var Game = Backbone.View.extend({
     });
   },
 
+  updateTimeScale: function () {
+    this.timeScale
+      .domain([this.date, new Date(this.date.getTime() + this.timeToShow)]);
+  },
+
   breakUpdate: function() {
     this.breakvalue.time = this.breakvalue.time - this.options.interval;
     if (this.breakvalue && this.breakvalue.time > 0)
@@ -553,7 +557,7 @@ var Game = Backbone.View.extend({
       }));
     else {
       this.removeText();
-      this.pauseGame(this.breakvalue.title, this.breakvalue.text)
+      this.pauseGame(this.breakvalue);
       this.breakvalue = false;
     }
   },
@@ -623,13 +627,7 @@ var Game = Backbone.View.extend({
   // --- Dynamic Rendering
   // --------------------
   
-  interpretData: function () {
-    this.timeScale
-      .domain([this.date, new Date(this.date.getTime() + this.timeToShow)]);
-  },
-
   renderDynamic: function () {
-    this.interpretData();
     this.renderTarget();
     this.renderGround();
     this.renderBubbles();
@@ -824,7 +822,7 @@ var Game = Backbone.View.extend({
   // --------------------
 
   renderStatic: function() {
-    this.interpretData();
+    this.updateTimeScale();
     this.renderGrass();
     this.renderVerticals();
     this.renderCircles();
