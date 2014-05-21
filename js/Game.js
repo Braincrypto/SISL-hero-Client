@@ -53,14 +53,18 @@ var Game = Backbone.View.extend({
 
   breakTemplate: _.template(
     '<div class="big">~ <%= title %> ~</div>' + 
-    '<%= text %>'
+    '<%= text %>' + 
+    '<br/>' +
+    'Get ready!<br/>' +
+    '<%= seconds %>'
   ),
 
   pauseTemplate: _.template(
     '<div class="big">~ <%= title %> ~</div>' +
     '<%= text %>' + 
     '<br/>' +
-    '(Keys in game: <%= keys %>, ESC to continue)<br/><br/>'
+    'Keys in game: <%= keys %><br/>'+
+    'Press ESC to continue'
   ),
 
   endTemplate: _.template('<div class="big">~ END OF GAME ~<div>'),
@@ -151,6 +155,7 @@ var Game = Backbone.View.extend({
     
     // ### Other
     score: 100,
+    infinityOffset: 0.3,
   },
 
   events: {
@@ -170,7 +175,7 @@ var Game = Backbone.View.extend({
       that.attach();
       that.adjustSpeed();
       that.renderStatic();
-      that.render();
+      that.renderDynamic();
     });
   },
 
@@ -223,7 +228,7 @@ var Game = Backbone.View.extend({
 
     this.projectionScale = d3.scale.linear()
       .domain([0, 1.0])
-      .range([1.00, 10]);
+      .range([1.00, 1 + 1/this.options.infinityOffset]);
 
     if (this.options.bubbleColor.length === 0)
       this.options.bubbleColor = d3.scale.category10().range().slice(0, this.options.keys.length);
@@ -308,7 +313,7 @@ var Game = Backbone.View.extend({
   },
 
   onKeydown: function (evt) {
-    if (evt.altKey || evt.ctrlKey || evt.metaKey) {
+    if (this.breakvalue || evt.altKey || evt.ctrlKey || evt.metaKey) {
       return;
     }
     if (evt.which === 27) {
@@ -341,7 +346,7 @@ var Game = Backbone.View.extend({
       this.clearFeedback();
       this.clearBubbles();
       this.processEvent();
-      this.render();
+      this.renderDynamic();
     }
   },
 
@@ -400,7 +405,7 @@ var Game = Backbone.View.extend({
     if (this.options.events.length === 0)
       return;
     
-    if (this.options.events[0].type === 'dialog') {
+    if (this.options.events[0].type === 'dialog' && this.currentBubbles.length === 0) {
       var evt = this.options.events.shift(),
           text = evt.value,
           sep = '//',
@@ -543,8 +548,8 @@ var Game = Backbone.View.extend({
       this.displayText(this.breakTemplate({
         title: this.breakvalue.title,
         text: this.breakvalue.text,
-        //minutes: Math.round(this.breakTime / 60000), 
-        //seconds: ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0)
+        minutes: Math.round(this.breakvalue.time / 60000), 
+        seconds: ((this.breakvalue.time % (60000)) / this.options.timeUnit).toFixed(0),
       }));
     else {
       this.removeText();
@@ -623,7 +628,7 @@ var Game = Backbone.View.extend({
       .domain([this.date, new Date(this.date.getTime() + this.timeToShow)]);
   },
 
-  render: function () {
+  renderDynamic: function () {
     this.interpretData();
     this.renderTarget();
     this.renderGround();
@@ -683,8 +688,8 @@ var Game = Backbone.View.extend({
     var
       that = this,
       opts = this.options,
-      ticks = this.timeScale.ticks(d3.time.seconds, 1),
-      format = this.timeScale.tickFormat(d3.time.seconds, 1),
+      ticks = this.timeScale.ticks(d3.time.seconds, .5),
+      format = this.timeScale.tickFormat(d3.time.seconds, .5),
       markers;
 
 
@@ -823,6 +828,7 @@ var Game = Backbone.View.extend({
     this.renderGrass();
     this.renderVerticals();
     this.renderCircles();
+    this.renderDynamic();
   },
   
   layout: function () {
@@ -835,7 +841,7 @@ var Game = Backbone.View.extend({
       .range([0, w]);
 
     this.yScale
-      .range([-h*0.1, h]);
+      .range([-h * this.options.infinityOffset, h]);
 
     d3.select(this.el).select('.ground').select('svg')
       .attr('width', w)
