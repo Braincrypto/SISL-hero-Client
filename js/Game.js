@@ -52,18 +52,15 @@ var Game = Backbone.View.extend({
   ),
 
   breakTemplate: _.template(
-    '<div class="big">~ BREAK ~</div><br/>' + 
-    'Time Left: ' + 
-    '<%= minutes %>:' + 
-    '<%= seconds %>' + 
-    '<br/>' +
-    '(Will be in paused state after this period)'
+    '<div class="big">~ <%= title %> ~</div>' + 
+    '<%= text %>'
   ),
 
   pauseTemplate: _.template(
-    '<div class="big">~ PAUSE ~</div>' +
-    '(ESC to continue)<br/><br/>' +
-    '(Keys in game: <%= keys %>)'
+    '<div class="big">~ <%= title %> ~</div>' +
+    '<%= text %>' + 
+    '<br/>' +
+    '(Keys in game: <%= keys %>, ESC to continue)<br/><br/>'
   ),
 
   endTemplate: _.template('<div class="big">~ END OF GAME ~<div>'),
@@ -77,7 +74,6 @@ var Game = Backbone.View.extend({
   // runtime variables
   currentBubbles: [],
   date: new Date(),
-  bubbleIndex: 0,
   speedFactor: 1,
   timeToShow: 6000, // 6 seconds
   accuracyRange: 0,
@@ -100,7 +96,7 @@ var Game = Backbone.View.extend({
     endPoint: Config.endPoint,
     
     // ### IDs
-    stepNumber: 0,
+    scenario: 0,
 
     // ### responses
     // - send options
@@ -138,8 +134,7 @@ var Game = Backbone.View.extend({
     ],
     
     // ### Patterns
-    patternkeys: [],
-    patterntime: [],
+    events: [],
     
     adaptiveSpeed: false,
     
@@ -151,8 +146,8 @@ var Game = Backbone.View.extend({
     baseTimeToShow: 6000, // 6 seconds
     interval: 65,
     timeUnit: 1000,
-    baseAccuracyRange: 100,
-    baseAccuracyOffset: 150,
+    baseAccuracyRange: .02,
+    baseAccuracyOffset: .2,
     
     // ### Other
     score: 100,
@@ -257,10 +252,17 @@ var Game = Backbone.View.extend({
     }
   },
 
-  pauseGame: function () {
+  pauseGame: function (title, text) {
+    if(typeof(title)==='undefined') title = 'PAUSE';
+    if(typeof(text)==='undefined') text = '';
+
     if (this.started && !this.ended) {
       window.clearInterval(this.interval);
-      this.displayText(this.pauseTemplate({keys: this.options.keys.toString()}));
+      this.displayText(this.pauseTemplate({
+        title: title,
+        text: text,
+        keys: this.options.keys.toString()
+      }));
       this.started = false;
       this.pausedTime = new Date();
     }
@@ -278,7 +280,7 @@ var Game = Backbone.View.extend({
   },
 
   onInterval: function () {
-    if(this.currentBubbles.length === 0 && this.options.patternkeys.length === 0) {
+    if(this.currentBubbles.length === 0 && this.options.events.length === 0) {
       this.endGame();
     } else {
       this.refresh();
@@ -332,21 +334,20 @@ var Game = Backbone.View.extend({
 
   refresh: function () {
     this.date = new Date();
-    if (this.breakStarted) {
+    if (this.breakvalue) {
       this.breakUpdate();
     } else {
       this.sendResponses();
       this.clearFeedback();
-      this.cleanData();
-      this.breakCheck();
-      this.addMoreBubbles();
+      this.clearBubbles();
+      this.processEvent();
       this.render();
     }
   },
 
   processKeyHit: function (key) {
     // interval has to be added because the timeScale is one interval late
-    var current = new Date().getTime() + this.accuracyOffset - this.options.interval,
+    var current = this.accuracyOffset,
       bestBubble = false,
       offset,
       bestOffset,
@@ -357,7 +358,7 @@ var Game = Backbone.View.extend({
     // Looking at all the possible bubbles to report error
     for (var i = 0; i < this.currentBubbles.length; i++) {
       bubble = this.currentBubbles[i];
-      offset = current - bubble.date.getTime();
+      offset = current - this.timeScale(bubble.date.getTime());
       diff = Math.abs(offset);
      
       if(!bestBubble || diff < bestDiff) {
@@ -395,40 +396,58 @@ var Game = Backbone.View.extend({
     this.feedback(keyNum, bestBubble.beenHit);
   },
 
-  addMoreBubbles: function () {
-    if (this.options.patternkeys.length === 0)
+  processEvent: function () {
+    if (this.options.events.length === 0)
       return;
-
-    var last = _.last(this.currentBubbles),
-      date = new Date(new Date().getTime() + this.timeToShow),
-      bubble;
     
-    if (!last) {
-      var i = this.options.patternkeys.shift();
-      bubble = this.createBubble(this.bubbleIndex, i, date);
-    } else {
-      bubbleDifference = date.getTime() - last.date.getTime();
-      if (bubbleDifference > this.options.patterntime[this.bubbleIndex] * this.options.timeUnit / this.speedFactor) {
-        var i = this.options.patternkeys.shift();
-        bubble = this.createBubble(this.bubbleIndex, i, date);
+    if (this.options.events[0].type === 'dialog') {
+      var evt = this.options.events.shift(),
+          text = evt.value,
+          sep = '//',
+          idx = text.indexOf(sep);
+      
+      this.breakvalue = {
+        title: (idx >= 0 ? text.substring(0, idx) : "BREAK"),
+        text: (idx >= 0 ? text.substring(idx + sep.length) : text),
+        time: evt.duration,
       }
+      return;
     }
-    if (bubble) {
-      this.currentBubbles.push(bubble);
-      this.bubbleIndex++;
+
+    if (this.options.events[0].type === 'cue') {
+      var last = _.last(this.currentBubbles),
+          date = new Date(new Date().getTime() + this.timeToShow),
+          bubble;
+
+      if (!last) {
+        var evt = this.options.events.shift();
+        bubble = this.createBubble(evt, date);
+      } else {
+        bubbleDifference = this.timeScale(date.getTime()) - this.timeScale(last.date.getTime());
+        if (bubbleDifference > last.dist) {
+          var evt = this.options.events.shift();
+          bubble = this.createBubble(evt, date);
+        }
+      }
+      if (bubble) {
+        this.currentBubbles.push(bubble);
+      }
+    
+      return;
     }
   },
 
-  createBubble: function (id, i, date) {
+  createBubble: function (evt, date) {
     // adjust speed
     var speedChange = this.adjustSpeed();
-
+    var i = evt.value - 1;
     // create bubble
     var newBubble = {
-      id: id,
+      id: evt.cueId,
       date: date,
       keyNumber: i,
       key: this.options.keys[i],
+      dist: evt.dist,
       color: this.options.bubbleColor[i],
       beenHit: false,
     };
@@ -446,9 +465,9 @@ var Game = Backbone.View.extend({
     return newBubble;
     },
 
-  cleanData: function () {
+  clearBubbles: function () {
     this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
-      var kept = bubble.date.getTime() + this.accuracyOffset + this.accuracyRange + 100 > this.date.getTime();
+      var kept = this.timeScale(bubble.date.getTime()) + this.accuracyOffset + this.accuracyRange + .1 > 0;
       if (!kept) {
         // adjust combo
         if(!bubble.beenHit)
@@ -473,6 +492,7 @@ var Game = Backbone.View.extend({
     // recompute speedFactor
     if(this.options.adaptativeSpeed && this.combo.length > this.options.comboWindow) {
       var sum = 0;
+
       for(var i = 0; i < this.combo.length; i++)
         sum += this.combo[i];
       
@@ -481,12 +501,14 @@ var Game = Backbone.View.extend({
       this.combo = [];
 
       if(ratio > this.options.speedUpTrigger)
-        speedChange = this.options.speedUpInc;
+        speedChange = this.options.speedRatio;
 
-      if(ratio < this.options.slowDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
-        speedChange = this.options.slowDownDec;
+      if(ratio < this.options.speedDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
+        speedChange = 1 / this.options.speedRatio;
       
-      if(speedChange !== 0) {
+      console.log('speedChange: ' + speedChange);
+
+      if(speedChange) {
         this.responses.push({
           cueId: -1,
           eventTimestamp: this.date.getTime() - this.startDate.getTime(),
@@ -496,15 +518,15 @@ var Game = Backbone.View.extend({
           eventSpeed: this.speedFactor,
         });
         
-        this.speedFactor = Math.round((this.speedFactor + speedChange) * 100) / 100;
+        this.speedFactor = Math.round(this.speedFactor * speedChange * 100) / 100;
         this.trigger('speed', {speed: this.speedFactor});
         console.log('Performance ratio: ' + ratio + ', Speed: ' + this.speedFactor);
       }
     }
     
     this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
-    this.accuracyRange = this.options.baseAccuracyRange / this.speedFactor;
-    this.accuracyOffset = this.options.baseAccuracyOffset / this.speedFactor;
+    this.accuracyRange = this.options.baseAccuracyRange;
+    this.accuracyOffset = this.options.baseAccuracyOffset;
     return speedChange;
   },
 
@@ -515,24 +537,19 @@ var Game = Backbone.View.extend({
     });
   },
 
-  breakCheck: function() {
-    if (!this.breakStarted && !this.currentBubbles.length && this.options.patterntime[this.bubbleIndex] * this.options.timeUnit > this.timeToShow) {
-      this.breakStarted = true;
-      this.breakTime = this.options.timeUnit * this.options.patterntime[this.bubbleIndex];
-    }
-  },
-
   breakUpdate: function() {
-    this.breakTime = this.breakTime - this.options.interval;
-    if (this.breakTime > 0)
+    this.breakvalue.time = this.breakvalue.time - this.options.interval;
+    if (this.breakvalue && this.breakvalue.time > 0)
       this.displayText(this.breakTemplate({
-        minutes: Math.round(this.breakTime / 60000), 
-        seconds: ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0)
+        title: this.breakvalue.title,
+        text: this.breakvalue.text,
+        //minutes: Math.round(this.breakTime / 60000), 
+        //seconds: ((this.breakTime % (60000)) / this.options.timeUnit).toFixed(0)
       }));
     else {
-      this.breakStarted = false;
       this.removeText();
-      this.pauseGame()
+      this.pauseGame(this.breakvalue.title, this.breakvalue.text)
+      this.breakvalue = false;
     }
   },
 
@@ -561,7 +578,7 @@ var Game = Backbone.View.extend({
         url: this.options.endPoint + '/user/' + this.options.token + '/response',
         data: JSON.stringify({
           token: this.options.token,
-          stepNumber: this.options.stepNumber,
+          scenario: this.options.scenario,
           batchId: batchProcessed,
           end: this.ended,
           score: this.score,
@@ -608,7 +625,6 @@ var Game = Backbone.View.extend({
 
   render: function () {
     this.interpretData();
-    this.renderCircles();
     this.renderTarget();
     this.renderGround();
     this.renderBubbles();
@@ -625,15 +641,19 @@ var Game = Backbone.View.extend({
 
   feedback: function(numKey, answer) {
     var that = this;
-    this.feedbackDate = new Date(new Date().getTime() + this.accuracyRange);
+    this.feedbackDate = new Date(new Date().getTime() + 100);
     this.feedbackOn = true;
     this.feedbackKey = numKey;
     
-    var fill = 'url(#target-zone-grad-bad)';
-    var circle = this.options.badColor;
+    var fill,
+        circle;
+
     if (answer) {
       fill = 'url(#target-zone-grad-good)';
       circle = this.options.goodColor;
+    } else {
+      fill = 'url(#target-zone-grad-bad)';
+      circle = this.options.badColor;
     }
 
     d3.select(this.el).select('.target')
@@ -802,7 +822,6 @@ var Game = Backbone.View.extend({
     this.interpretData();
     this.renderGrass();
     this.renderVerticals();
-    this.renderTarget();
     this.renderCircles();
   },
   
@@ -863,9 +882,8 @@ var Game = Backbone.View.extend({
 
   renderTarget: function() {
     var
-      opts = this.options,
-      zfar = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.accuracyOffset + this.accuracyRange)),
-      znear = this.timeScale(new Date(this.timeScale.domain()[0].getTime() + this.accuracyOffset - this.accuracyRange)),
+      zfar = this.accuracyOffset + this.accuracyRange,
+      znear = this.accuracyOffset - this.accuracyRange,
       far = 1 / this.projectionScale(zfar),
       near = 1 / this.projectionScale(znear),
       path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
@@ -883,7 +901,7 @@ var Game = Backbone.View.extend({
       that = this,
       opts = this.options,
       division = 2 / (opts.keys.length + 1 + opts.middlePadding),
-      z = that.timeScale(new Date(that.timeScale.domain()[0].getTime() + this.accuracyOffset)),
+      z = this.accuracyOffset,
       p = 1 / that.projectionScale(z),
       r = Math.max(~~(this.maxBubbleSize * p), 0.01) + opts.circleSize,
       circles;
