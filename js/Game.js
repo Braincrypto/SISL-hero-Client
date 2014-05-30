@@ -76,7 +76,7 @@ var Game = Backbone.View.extend({
     ),
     
     'recogStart': _.template(
-      '<div class="big">~ REGNITION TEST ~</div>' +
+      '<div class="big">~ RECOGNITION TEST ~</div>' +
       'You will now play the game for a short period of time.<br/>' +
       'Then you will be asked how familiar you are with the sequence you played.<br/>' + 
       '<div class="big"><%= footer %></div>'
