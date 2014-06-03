@@ -375,15 +375,17 @@ var Game = Backbone.View.extend({
       return;
 
     evt.preventDefault();
-    var validkey = (evt.which === this.options.validKey);
-    var key = String.fromCharCode(evt.keyCode);
+    var charCode = (evt.which) ? evt.which : evt.keyCode;
+    var validkey = (charCode === this.options.validKey);
     // process any validation in priority
     if (!this.dialog) {
       if (validkey)
         this.startDialog();
       else
-        this.bubbleKeyHit(key);
+        this.bubbleKeyHit(String.fromCharCode(charCode));
     } else {
+      // hack for numpad keys
+      key = String.fromCharCode((charCode >= 96 ? charCode - 48 : charCode))
       if (this.dialog.keys.indexOf(parseInt(key)) > -1)
         this.dialog.value = key;
       this.updateDialog(validkey);
