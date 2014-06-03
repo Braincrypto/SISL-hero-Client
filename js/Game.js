@@ -72,8 +72,9 @@ var Game = Backbone.View.extend({
     },
     'recogRating': {
       title: 'RECOGNITION RATING',
-      text: 'In a scale from 0 to 9, how familiar were you with the sequence you just played?',
-      footer: 'Press the numeric key associated with your answer and SPACE to validate.',
+      text: 'In a scale from 0 to 9,<br/> how familiar were you with the sequence you just played?<br/>' +
+      'Press the numeric key associated with your answer <br/>and SPACE to validate.',
+      footer: '',
     },
     'break': {
       title: 'BREAK',
