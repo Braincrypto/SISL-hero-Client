@@ -317,6 +317,7 @@ var Game = Backbone.View.extend({
           eventDist: 0,
           eventSpeed: 0,
         });
+        this.sendResponses(true);
       }
       this.removeText();
       this.dialog = false;
@@ -519,13 +520,14 @@ var Game = Backbone.View.extend({
       dist: evt.dist,
       color: this.options.bubbleColor[i],
       beenHit: false,
+      type: 'cue-created',
     };
     
     // push event appeared
     this.responses.push({
       cueId: newBubble.id,
       eventTimestamp: this.date.getTime() - this.startDate.getTime(),
-      eventType: 'cue-created',
+      eventType: newBubble.type,
       eventValue: newBubble.keyNumber + 1,
       eventDist: 0,
       eventSpeed: this.speedFactor,
@@ -536,17 +538,26 @@ var Game = Backbone.View.extend({
 
   clearBubbles: function () {
     this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
-      var kept = this.timeScale(bubble.date.getTime()) + this.options.accuracyOffset + this.options.accuracyRange + .1 > 0;
-      if (!kept) {
-        // adjust combo
-        if(!bubble.beenHit)
-          this.combo.push(0);
+      var newtype = bubble.type,
+          z = this.timeScale(bubble.date.getTime()) - this.options.accuracyOffset,
+          kept = this.timeScale(bubble.date.getTime()) + .1 > 0;
 
-        // push event disappeared
+      if (z < 0 && z > -this.options.accuracyRange)
+        newtype = 'cue-after-target';
+      if (z > 0 && z < this.options.accuracyRange)
+        newtype = 'cue-in-target';      
+      if (!kept) {
+        newtype = 'cue-disappear';
+        if (!bubble.beenHit)
+          this.combo.push(0);
+      }
+
+      if (newtype !== bubble.type) {
+        bubble.type = newtype;
         this.responses.push({
           cueId: bubble.id,
           eventTimestamp: this.date.getTime() - this.startDate.getTime(),
-          eventType: 'cue-disappear',
+          eventType: bubble.type,
           eventValue: bubble.keyNumber + 1,
           eventDist: 0,
           eventSpeed: this.speedFactor,
@@ -620,8 +631,8 @@ var Game = Backbone.View.extend({
   // ### Network ####
   // ################
 
-  sendResponses: function() {
-    if(this.responses.length >= this.options.batchSize || (this.responses.length > 0 && this.ended)) {
+  sendResponses: function(forced) {
+    if((this.responses.length >= this.options.batchSize) || (this.responses.length > 0 && (this.ended || forced))) {
       // store the batch locally
       var 
         responsesBatch = this.responses,
