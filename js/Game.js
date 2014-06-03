@@ -213,7 +213,7 @@ var Game = Backbone.View.extend({
     jQuery.ajaxSetup({async:false});
 
     // get config file
-    console.log(this.options.endPoint + '/user/' + this.options.token + '/challenge');
+    console.log('Getting config from: ' + this.options.endPoint + '/user/' + this.options.token + '/challenge');
     jQuery.getJSON(this.options.endPoint + '/user/' + this.options.token + '/challenge', function(data) {
       $.extend(that.options, data);
     })

@@ -1,6 +1,6 @@
 var Hero = Backbone.View.extend({
   initialize: function () {
-    console.log('starting hero');
+    console.log('Starting hero');
     this.model = new Backbone.Model({
       start: new Date(),
       score: 0,
@@ -56,7 +56,7 @@ var Hero = Backbone.View.extend({
   },
 
   onEnd: function (evt) {
-    console.log('exiting hero');
+    console.log('Exiting hero');
     if(this.options.callback)
       this.options.callback();
   }
