@@ -168,7 +168,7 @@ var Game = Backbone.View.extend({
     // ### Patterns
     events: [],
     
-    adaptiveSpeed: false,
+    adaptativeSpeed: false,
     
     // ### Design
     numMarkers: 12,
@@ -271,7 +271,7 @@ var Game = Backbone.View.extend({
     if (!this.started && !this.ended) {
       this.started = true;
       if (this.currentBubbles.length) {
-        this.readjustBubbleDate();
+        this.adjustBubbleDate();
         console.log("Time adjusted after paused");
       }
       this.interval = window.setInterval(this.onInterval, this.options.interval);
@@ -382,7 +382,7 @@ var Game = Backbone.View.extend({
       if (validkey)
         this.startDialog();
       else
-        this.bubbleKeyHit(String.fromCharCode(charCode));
+        this.keyhitBubble(String.fromCharCode(charCode));
     } else {
       // hack for numpad keys
       key = String.fromCharCode((charCode >= 96 ? charCode - 48 : charCode))
@@ -400,26 +400,38 @@ var Game = Backbone.View.extend({
     if (this.options.events.length === 0)
       return;
     
-    if (this.options.events[0].type === 'dialog' && this.currentBubbles.length === 0) {
-      var evt = this.options.events.shift(),
-          value = evt.value,
-          idx = value.indexOf('.'),
-          type = (idx > -1 ? value.substring(0, idx): value),
-          subtype = value;
+    if (this.options.events[0].type === 'dialog') {
+      // wait for game field to be empty to start dialog event
+      if (this.currentBubbles.length === 0) {
+        var evt = this.options.events.shift(),
+            value = evt.value,
+            idx = value.indexOf('.'),
+            type = (idx > -1 ? value.substring(0, idx): value),
+            subtype = value;
 
-      this.startDialog({
-        type: type,
-        subtype: subtype,
-        time: evt.duration,
-        keys: (type === 'recogRating' ? _.range(10) : []),
-        value: 0,
-      });
+        this.startDialog({
+          type: type,
+          subtype: subtype,
+          time: evt.duration,
+          keys: (type === 'recogRating' ? _.range(10) : []),
+          value: 0,
+        });
+      }
       return;
     }
-    if (this.options.events[0].type === 'speed') {
+
+    if (this.options.events[0].type === 'speedSet') {
       var evt = this.options.events.shift(),
           value = evt.value;
       this.adjustSpeed(value);
+      return;
+    }
+
+    if (this.options.events[0].type === 'speedAdapt') {
+      var evt = this.options.events.shift(),
+          value = evt.value;
+      this.adaptSpeed(value);
+      return;
     }
 
     if (this.options.events[0].type === 'cue') {
@@ -443,6 +455,10 @@ var Game = Backbone.View.extend({
     
       return;
     }
+
+    // if we reached this point, event unknown
+    console.log('Unknown event: ' + this.options.events[0].type);
+    this.options.events.shift();
   },
 
   refresh: function () {
@@ -452,14 +468,14 @@ var Game = Backbone.View.extend({
     } else {
       this.sendResponses();
       this.clearFeedback();
-      this.clearBubbles();
+      this.updateCurrentBubbles();
       this.processEvent();
       this.updateTimeScale();
       this.renderDynamic();
     }
   },
 
-  bubbleKeyHit: function (key) {
+  keyhitBubble: function (key) {
     // interval has to be added because the timeScale is one interval late
     var current = this.options.accuracyOffset,
       bestBubble = false,
@@ -490,10 +506,10 @@ var Game = Backbone.View.extend({
       bestBubble.offset = bestOffset;
 
       this.bubbleEvent();
-      this.combo.push(1);
-    } else {
-      this.combo.push(0);
     }
+    
+    if (this.options.adaptativeSpeed)
+      this.combo.push(bestBubble.beenHit);
 
     var keyNum = this.options.keys.indexOf(key);
     // add response to buffer
@@ -537,9 +553,9 @@ var Game = Backbone.View.extend({
     });
 
     return newBubble;
-    },
+  },
 
-  clearBubbles: function () {
+  updateCurrentBubbles: function () {
     this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
       var newtype = bubble.type,
           z = this.timeScale(bubble.date.getTime()) - this.options.accuracyOffset,
@@ -570,13 +586,35 @@ var Game = Backbone.View.extend({
     }, this);
   },
   
+  adaptSpeed: function(bool) {
+    this.combo = [];
+    this.options.adaptativeSpeed = (bool === true);
+    this.responses.push({
+      cueId: -1,
+      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventType: 'speedAdapt',
+      eventValue: bool,
+      eventDist: 0,
+      eventSpeed: this.speedFactor,
+    });
+    console.log('Adaptative speed: ' + this.options.adaptativeSpeed);
+  },
+
   adjustSpeed: function(forced) {
     if(forced) {
       this.combo = [];
       this.speedFactor = forced;
 
       this.trigger('speed', {speed: this.speedFactor});
-      console.log('Reset speed');
+      this.responses.push({
+        cueId: -1,
+        eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+        eventType: 'speedSet',
+        eventValue: this.speedFactor,
+        eventDist: 0,
+        eventSpeed: this.speedFactor,
+      });
+      console.log('Set speed: ' + this.speedFactor);
     }
     
     // recompute speedFactor
@@ -618,7 +656,7 @@ var Game = Backbone.View.extend({
     this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
   },
 
-  readjustBubbleDate: function () {
+  adjustBubbleDate: function () {
     var diff = new Date().getTime() - this.pausedTime.getTime();
     _.each(this.currentBubbles, function (o) {
       o.date = new Date(o.date.getTime() + diff);
