@@ -2,7 +2,7 @@ var ScoreBar = Backbone.View.extend({
 
   template: '<div class="score"></div><div class="hits"></div>',
 
-  scoreTemplate: _.template('Speed: <%= model.get("speed") %>, Score: <%= model.get("score") %>'),
+  scoreTemplate: _.template('<%= model.get("speed") %>x / <%= model.get("score") %>pts'),
   hitsTemplate: _.template('Hits: <%= model.get("hits") %>'),
 
   initialize: function () {
