@@ -39,73 +39,64 @@ var Game = Backbone.View.extend({
     '<div class="paused-text-container"><div class="paused-text"><div class="big">~ LOADING ~</div></div></div>'
   ),
 
-  staticTemplate: {
-    'instructions': 'Hit ESC to start',
-    'sessionStart': 'Hit ESC to start',
-    'sessionDone':  '',
-    'recogStart': 'Hit ESC to start',
-    'recogRating': 'Press the numeric key associated with your answer to continue.',
-    'break': 'Press ESC to continue',
-    'pause': 'Press ESC to continue',
-  },
-  
-  dynamicTemplate: {
-    'instructions': _.template(
-      '<div class="big">~ HOW TO PLAY ~</div>' +
-      'You will see bubbles going down with the following letters on them (<%= keys %>)<br/>' +
-      'The goal is to hit the key of each bubble at the moment this bubble is the right circle.<br/>' +
-      'You can pause at any time using the ESC key.<br/><br/>' +
+  dialogContent: {
+    'instructions': {
+      title: 'HOW TO PLAY',
+      text: 'You will see bubbles going down with the letters on them.<br/>' +
+      'The goal is to hit the key of each bubble at the moment this bubble is in the right circle.<br/>' +
+      'You can pause at any time using the SPACE key.<br/><br/>' +
       'Let\'s start with a small example.<br/>' +
       'Get ready by putting your finger on the right keys!<br/>' +
-      'Good luck!<br/>' +
-      '<div class="big"><%= footer %></div>'
-    ),
-    
-    'sessionStart': _.template(
-      '<div class="big">~ GET READY ~</div>' +
-      'The real game will now start playing.<br/>' +
+      'Good luck!<br/>',
+      footer: 'Hit SPACE to begin test',
+    },
+    'sessionStart': {
+      title: 'GET READY',
+      text: 'The real game will now start playing.<br/>' +
       'The difficulty will adjust to your performance.<br/>' +
       'Try to be as good as possible!<br/>' +
       'Get ready by putting your finger on the right keys!<br/>' +
-      'Good luck!<br/>' +
-      '<div class="big"><%= footer %></div>'
-    ),
-    
-    'sessionDone': _.template(
-      '<div class="big">~ END OF GAME ~</div>'
-    ),
-    
-    'recogStart': _.template(
-      '<div class="big">~ RECOGNITION TEST ~</div>' +
-      'You will now play the game for a short period of time.<br/>' +
-      'Then you will be asked how familiar you are with the sequence you played.<br/>' + 
-      '<div class="big"><%= footer %></div>'
-    ),
-
-    'recogRating': _.template(
-      '<div class="big">~ REGNITION RATING ~</div>' +
-      'In a scale from 0 to 9, how familiar were you with the sequence you just played?<br/>' +
-      '<div class="big"><%= footer %></div>'
-    ),
-
-    'break': _.template(
-      '<div class="big">~ BREAK ~</div>' + 
-      'This is a small break period so that you can relax a bit for the next round!' + 
-      '<br/>' +
-      '<div class="big"><%= footer %></div>'
-    ),
-    
-    'pause': _.template(
-      '<div class="big">~ PAUSE ~</div>' + 
-      '<br/>' +
-      '<div class="big"><%= footer %></div>'
-    ),  
-    
+      'Good luck!',
+      footer: 'Hit SPACE to start',
+    },
+    'sessionDone': {
+      title: 'END OF GAME',
+      text: '',
+      footer: 'Thanks for playing!',
+    },
+    'recogStart': {
+      title: 'RECOGNITION TEST',
+      text: 'You will now play the game for a short period of time.<br/>' +
+      'Then you will be asked how familiar you are with the sequence you played.',
+      footer: 'Press SPACE to start',
+    },
+    'recogRating': {
+      title: 'RECOGNITION RATING',
+      text: 'In a scale from 0 to 9, how familiar were you with the sequence you just played?',
+      footer: 'Press the numeric key associated with your answer and SPACE to validate.',
+    },
+    'break': {
+      title: 'BREAK',
+      text: 'This is a small break period so that you can relax a bit for the next round!',
+      footer :'Press SPACE to continue',
+    },
+    'pause': {
+      title: 'PAUSE',
+      text: '',
+      footer: 'Press SPACE to continue',
+    }
   },
 
-  endTemplate: _.template('<div class="big">~ END OF GAME ~<div>'),
+  dialogTemplate: _.template(
+     '<div class="big">~ <%= title %> ~</div>' +
+     '<%= text %><br/>' + 
+     '<div class="big"><%= mesg %></div>' +
+     '<div class="small">(Keys in game: <%= keys %>)</div>' 
+  ),
+
+  endTemplate: '<div class="big">~ END OF GAME ~<div>',
   
-  loadingTemplate: _.template('<div class="big">~ LOADING GAME ~<div>'),
+  loadingTemplate: '<div class="big">~ LOADING GAME ~<div>',
 
   // #################
   // Runtime variables
@@ -116,8 +107,6 @@ var Game = Backbone.View.extend({
   date: new Date(),
   speedFactor: 1,
   timeToShow: 6000, // 6 seconds
-  accuracyRange: 0,
-  accuracyOffset: 0,
   
   // responses
   responses: [],
@@ -172,6 +161,8 @@ var Game = Backbone.View.extend({
       'G',
       'H'
     ],
+    // validation key is space
+    validKey: 32,
     
     // ### Patterns
     events: [],
@@ -186,8 +177,8 @@ var Game = Backbone.View.extend({
     baseTimeToShow: 6000, // 6 seconds
     interval: 65,
     timeUnit: 1000,
-    baseAccuracyRange: .02,
-    baseAccuracyOffset: .2,
+    accuracyRange: .02,
+    accuracyOffset: .2,
     
     // ### Other
     score: 100,
@@ -198,14 +189,13 @@ var Game = Backbone.View.extend({
   },
 
   initialize: function () {
-    var that = this;
     this.$document = $(document);
     this.$window = $(window);
     this.$body = $('body');
     this.$el.html(this.sceneTemplate({green: this.options.goodColor, red: this.options.badColor}));
     this.displayText(this.loadingTemplate);
-   
-    this.loadParam(function () {
+
+    this.loadParam(function(that) {
       that.setup();
       that.layout();
       that.attach();
@@ -238,7 +228,7 @@ var Game = Backbone.View.extend({
     // get back to asynchronous mode
     jQuery.ajaxSetup({async:true});
 
-    process();
+    process(this);
   },  
 
   setup: function () {
@@ -288,34 +278,54 @@ var Game = Backbone.View.extend({
     }
   },
 
-  dialogGame: function () {
-    if(this.started) {
+  startDialog: function (dialog) {
+    // change state to paused if not already
+    if(this.started && !this.ended) {
       this.started = false;
       this.pausedTime = new Date();
+    
+      // pause by default
+      if(typeof(dialog) === 'undefined') 
+        this.dialog = {
+          type: 'pause',
+          time: 0,
+          keys: [],
+        }
+      else
+        this.dialog = dialog;
     }
-
-    if(!this.dialog) 
-      this.dialog = {
-        type: 'pause',
-        time: 0,
-        keys: [27],
-      };
-    
-    
+  },
+  
+  updateDialog: function (confirmation) {
+    var content = this.dialogContent[this.dialog.type];
+    content.keys = this.options.keys.toString();
     this.dialog.time = this.dialog.time - this.options.interval;
-    var tplate = this.dynamicTemplate[this.dialog.type];
-    if (this.dialog.time > 0) {
-      this.displayText(tplate({
-        minutes: Math.round(this.dialog.time / 60000), 
-        footer: ((this.dialog.time % (60000)) / this.options.timeUnit).toFixed(0),
-        keys: this.options.keys.toString(),
-      }));
+    if (this.dialog.type === 'recogRating')
+      content.mesg = 'Your rating: ' + this.dialog.value;
+    else if (this.dialog.time > 0)
+      content.mesg = ((this.dialog.time % (60000)) / this.options.timeUnit).toFixed(0);
+    else
+      content.mesg = content.footer;
+    
+    if(confirmation && this.dialog.time <= 0) {
+      if(this.dialog.type === 'recogRating') {
+        this.responses.push({
+          cueId: -1,
+          eventTimestamp: new Date().getTime() - this.startDate.getTime(),
+          eventType: this.dialog.subtype,
+          eventValue: this.dialog.value,
+          eventDist: 0,
+          eventSpeed: 0,
+        });
+      }
+      this.removeText();
+      this.dialog = false;
+      this.startGame();
     } else {
-      window.clearInterval(this.interval);
-      this.displayText(tplate({
-        footer: this.staticTemplate[this.dialog.type],
-        keys: this.options.keys.toString(),
-      }));
+      if (this.dialog.time <= 0)
+        window.clearInterval(this.interval);
+    
+      this.displayText(this.dialogTemplate(content));
     }
   },
 
@@ -358,40 +368,24 @@ var Game = Backbone.View.extend({
   },
 
   onKeydown: function (evt) {
+    // escape parameters
     if (this.ended || evt.altKey || evt.ctrlKey || evt.metaKey)
       return;
 
     evt.preventDefault();
-
-    if (this.dialog) {
-      if (this.dialog.keys.indexOf(evt.which) > -1)
-        this.dialogKeyHit(String.fromCharCode(evt.keyCode))
-     
-      return;
+    var validkey = (evt.which === this.options.validKey);
+    var key = String.fromCharCode(evt.keyCode);
+    // process any validation in priority
+    if (!this.dialog) {
+      if (validkey)
+        this.startDialog();
+      else
+        this.bubbleKeyHit(key);
+    } else {
+      if (this.dialog.keys.indexOf(parseInt(key)) > -1)
+        this.dialog.value = key;
+      this.updateDialog(validkey);
     }
-    
-    if (!this.dialog && evt.which === 27) {
-      this.dialogGame();
-      return;
-    }
-    
-    this.BubbleKeyHit(String.fromCharCode(evt.keyCode));
-  },
-
-  dialogKeyHit: function (key) {
-    if(this.dialog.type === 'recogRating') {
-      this.responses.push({
-        cueId: -1,
-        eventTimestamp: new Date().getTime() - this.startDate.getTime(),
-        eventType: this.dialog.subtype,
-        eventValue: key,
-        eventDist: 0,
-        eventSpeed: 0,
-      });
-    }
-  
-    this.dialog = false;
-    this.startGame();
   },
 
   // ##############
@@ -409,13 +403,19 @@ var Game = Backbone.View.extend({
           type = (idx > -1 ? value.substring(0, idx): value),
           subtype = value;
 
-      this.dialog = {
+      this.startDialog({
         type: type,
         subtype: subtype,
         time: evt.duration,
-        keys: (type === 'recogRating' ? [48, 49, 50, 51, 52, 53, 54, 55, 56, 57] : [27]),
-      }
+        keys: (type === 'recogRating' ? _.range(10) : []),
+        value: 0,
+      });
       return;
+    }
+    if (this.options.events[0].type === 'speed') {
+      var evt = this.options.events.shift(),
+          value = evt.value;
+      this.adjustSpeed(value);
     }
 
     if (this.options.events[0].type === 'cue') {
@@ -441,11 +441,10 @@ var Game = Backbone.View.extend({
     }
   },
 
-
   refresh: function () {
     this.date = new Date();
     if (this.dialog) {
-      this.dialogGame();
+      this.updateDialog();
     } else {
       this.sendResponses();
       this.clearFeedback();
@@ -456,9 +455,9 @@ var Game = Backbone.View.extend({
     }
   },
 
-  BubbleKeyHit: function (key) {
+  bubbleKeyHit: function (key) {
     // interval has to be added because the timeScale is one interval late
-    var current = this.accuracyOffset,
+    var current = this.options.accuracyOffset,
       bestBubble = false,
       offset,
       bestOffset,
@@ -480,8 +479,8 @@ var Game = Backbone.View.extend({
     }
 
     // Update key if has been hit
-    if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.accuracyRange) {
-      var score = Math.round(this.options.score * Math.sqrt(1 - (bestDiff/this.accuracyRange)));
+    if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.options.accuracyRange) {
+      var score = Math.round(this.options.score * Math.sqrt(1 - (bestDiff/this.options.accuracyRange)));
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
       bestBubble.offset = bestOffset;
@@ -492,7 +491,7 @@ var Game = Backbone.View.extend({
       this.combo.push(0);
     }
 
-    keyNum = this.options.keys.indexOf(key);
+    var keyNum = this.options.keys.indexOf(key);
     // add response to buffer
     this.responses.push({
       cueId: bestBubble.id,
@@ -537,7 +536,7 @@ var Game = Backbone.View.extend({
 
   clearBubbles: function () {
     this.currentBubbles = _.filter(this.currentBubbles, function (bubble) {
-      var kept = this.timeScale(bubble.date.getTime()) + this.accuracyOffset + this.accuracyRange + .1 > 0;
+      var kept = this.timeScale(bubble.date.getTime()) + this.options.accuracyOffset + this.options.accuracyRange + .1 > 0;
       if (!kept) {
         // adjust combo
         if(!bubble.beenHit)
@@ -557,11 +556,19 @@ var Game = Backbone.View.extend({
     }, this);
   },
   
-  adjustSpeed: function() {
-    var speedChange = 0;
+  adjustSpeed: function(forced) {
+    if(forced) {
+      this.combo = [];
+      this.speedFactor = forced;
+
+      this.trigger('speed', {speed: this.speedFactor});
+      console.log('Reset speed');
+    }
+    
     // recompute speedFactor
     if(this.options.adaptativeSpeed && this.combo.length > this.options.comboWindow) {
-      var sum = 0;
+      var sum = 0,
+          speedChange = 0;
 
       for(var i = 0; i < this.combo.length; i++)
         sum += this.combo[i];
@@ -576,7 +583,7 @@ var Game = Backbone.View.extend({
       if(ratio < this.options.speedDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
         speedChange = 1 / this.options.speedRatio;
       
-      console.log('speedChange: ' + speedChange);
+      console.log('Speed change: ' + speedChange);
 
       if(speedChange) {
         this.responses.push({
@@ -595,9 +602,6 @@ var Game = Backbone.View.extend({
     }
     
     this.timeToShow = this.options.baseTimeToShow / this.speedFactor;
-    this.accuracyRange = this.options.baseAccuracyRange;
-    this.accuracyOffset = this.options.baseAccuracyOffset;
-    return speedChange;
   },
 
   readjustBubbleDate: function () {
@@ -936,8 +940,8 @@ var Game = Backbone.View.extend({
 
   renderTarget: function() {
     var
-      zfar = this.accuracyOffset + this.accuracyRange,
-      znear = this.accuracyOffset - this.accuracyRange,
+      zfar = this.options.accuracyOffset + this.options.accuracyRange,
+      znear = this.options.accuracyOffset - this.options.accuracyRange,
       far = 1 / this.projectionScale(zfar),
       near = 1 / this.projectionScale(znear),
       path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
@@ -955,7 +959,7 @@ var Game = Backbone.View.extend({
       that = this,
       opts = this.options,
       division = 2 / (opts.keys.length + 1 + opts.middlePadding),
-      z = this.accuracyOffset,
+      z = this.options.accuracyOffset,
       p = 1 / that.projectionScale(z),
       r = Math.max(~~(this.maxBubbleSize * p), 0.01) + opts.circleSize,
       circles;
