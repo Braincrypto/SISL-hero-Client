@@ -42,38 +42,54 @@ var Game = Backbone.View.extend({
   dialogContent: {
     'instructions': {
       title: 'HOW TO PLAY',
-      text: 'You will see bubbles going down with the letters on them.<br/>' +
-      'The goal is to hit the key of each bubble at the moment this bubble is in the right circle.<br/>' +
-      'You can pause at any time using the SPACE key.<br/><br/>' +
+      text: 'You will see bubbles scrolling down the screen with letters on them.<br/>' +
+      'Your goal is to hit the correct key at the moment the bubble is in its target circle (marked underneath).<br/>' +
+      'If you hit the right key at the right time, the bubble will pop.<br/>' +
+      'If you miss or hit the wrong key, the target zone will flash red.<br/>' +
+      'Try to press ONE key per bubble! The game will know if you are ignoring bubbles or mashing buttons.<br/><br/>' +
       'Let\'s start with a small example.<br/>' +
-      'Get ready by putting your finger on the right keys!<br/>' +
+      'Get ready by putting your fingers on the right keys!<br/>' +
       'Good luck!<br/>',
-      footer: 'Hit SPACE to begin test',
+      footer: 'Press SPACE to start',
     },
     'sessionStart': {
       title: 'GET READY',
       text: 'The real game will now start playing.<br/>' +
-      'The difficulty will adjust to your performance.<br/>' +
-      'Try to be as good as possible!<br/>' +
+      'Try to be as accurate as possible! (Remember, one keypress per bubble)<br/>' +
+      'because the difficulty will adjust to your performance.<br/>' +
+      'So, the better you do, the sooner you will finish!<br/><br/>' +
       'Get ready by putting your finger on the right keys!<br/>' +
       'Good luck!',
-      footer: 'Hit SPACE to start',
+      footer: 'Press SPACE to start',
     },
     'sessionDone': {
-      title: 'END OF GAME',
-      text: '',
-      footer: 'Thanks for playing!',
+      title: 'End of Game',
+      text: 'You have finished the experiment!<br/>' + 
+      'Thanks for playing!',
+      footer: 'PRESS SPACE to finish your work',
+    },
+    'recogInstructions': {
+      title: 'Recognition Test: Instructions',
+      text: 'Did you notice any repeating patterns throughout the game?<br/>' +
+      'There was a repeating sequence of bubbles throughout the game, <br/>' +
+      'and now we want to know if you can identify it.<br/><br/>' +
+      'You will now play the game for a very short period of time.<br/>' +
+      'Afterwards you will be asked how familiar you are with the sequence you played.',
+      footer: 'Press SPACE to start',
     },
     'recogStart': {
-      title: 'RECOGNITION TEST',
-      text: 'You will now play the game for a short period of time.<br/>' +
-      'Then you will be asked how familiar you are with the sequence you played.',
+      title: 'Recognition Quiz',
+      text: 'Play through the sequence.<br/>' +
+      'Then rate how familiar it is to you!',
       footer: 'Press SPACE to start',
     },
     'recogRating': {
       title: 'RECOGNITION RATING',
-      text: 'In a scale from 0 to 9,<br/> how familiar were you with the sequence you just played?<br/>' +
-      'Press the numeric key associated with your answer <br/>and SPACE to validate.',
+      text: 'Rate on a scale from 0 to 9<br/>' +
+      '(0=Not at all familiar, 9=Very familiar)<br/><br/>' +
+      'How familiar were you with the sequence you just played?<br/>' +
+      'Press any number key to enter or change your rating<br/>' +
+      'Hit the Spacebar to confirm and continue',
       footer: '',
     },
     'break': {
@@ -85,7 +101,7 @@ var Game = Backbone.View.extend({
       title: 'PAUSE',
       text: '',
       footer: 'Press SPACE to continue',
-    }
+    },
   },
 
   dialogTemplate: _.template(
