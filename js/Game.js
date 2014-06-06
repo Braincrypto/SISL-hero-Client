@@ -350,7 +350,6 @@ var Game = Backbone.View.extend({
   endGame: function () {
     if (this.started) {
       window.clearInterval(this.interval);
-      this.displayText(this.endTemplate);
       this.ended = true;
       this.endedTime = new Date();
       this.sendResponses();
@@ -359,7 +358,7 @@ var Game = Backbone.View.extend({
   },
 
   onInterval: function () {
-    if(this.currentBubbles.length === 0 && this.options.events.length === 0) {
+    if(this.currentBubbles.length === 0 && this.options.events.length === 0 && !this.dialog) {
       this.endGame();
     } else {
       this.refresh();
@@ -428,7 +427,7 @@ var Game = Backbone.View.extend({
         this.startDialog({
           type: type,
           subtype: subtype,
-          time: evt.duration,
+          time: (type === 'sessionDone' || type === 'recogRating' ? 0 : evt.duration),
           keys: (type === 'recogRating' ? _.range(10) : []),
           value: 0,
         });
