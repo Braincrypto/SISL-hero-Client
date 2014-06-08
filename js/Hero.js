@@ -6,6 +6,7 @@ var Hero = Backbone.View.extend({
       score: 0,
       hits: 0,
       speed: 1,
+      percent: 0,
     });
     this.$body = $('body');
     this.build();
@@ -31,11 +32,18 @@ var Hero = Backbone.View.extend({
   attach: function () {
     this.listenTo(this.game, 'score', this.onGameScore);
     this.listenTo(this.game, 'speed', this.onGameSpeed);
+    this.listenTo(this.game, 'percent', this.onGamePercent);
     this.listenTo(this.game, 'end', this.onEnd);
     
     if (this.controllerBar) {
       this.listenTo(this.controllerBar, 'press', this.onControllerBarPress);
     }
+  },
+
+  onGamePercent: function (evt) {
+    this.model.set({
+      percent: evt.percent,
+    });
   },
 
   onGameScore: function (evt) {

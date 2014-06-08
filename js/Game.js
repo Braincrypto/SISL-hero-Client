@@ -46,6 +46,8 @@ var Game = Backbone.View.extend({
       'Your goal is to hit the correct key at the moment the bubble is in its target circle (marked underneath).<br/>' +
       'If you hit the right key at the right time, the bubble will pop.<br/>' +
       'If you miss or hit the wrong key, the target zone will flash red.<br/>' +
+      'Information about the game are displayed on the top corners,<br/>' +
+      'check the top left corner to know how much percent of the game remains<br/>' +
       'Try to press ONE key per bubble! The game will know if you are ignoring bubbles or mashing buttons.<br/><br/>' +
       'Let\'s start with a small example.<br/>' +
       'Get ready by putting your fingers on the right keys!<br/>' +
@@ -202,9 +204,6 @@ var Game = Backbone.View.extend({
     infinityOffset: 0.3,
   },
 
-  events: {
-  },
-
   initialize: function () {
     this.$document = $(document);
     this.$window = $(window);
@@ -250,6 +249,7 @@ var Game = Backbone.View.extend({
 
   setup: function () {
     this.startDate = new Date();
+    this.options.totalevents = this.options.events.length;
     
     this.timeScale = d3.time.scale().range([0, 1]);
 
@@ -359,6 +359,7 @@ var Game = Backbone.View.extend({
 
   onInterval: function () {
     if(this.currentBubbles.length === 0 && this.options.events.length === 0 && !this.dialog) {
+      console.log('Eding game');
       this.endGame();
     } else {
       this.refresh();
@@ -477,7 +478,10 @@ var Game = Backbone.View.extend({
   },
 
   refresh: function () {
+    // update date
     this.date = new Date();
+    // update number of events left
+    this.trigger('percent', {percent: 100 - Math.round(this.options.events.length * 100 / this.options.totalevents)});
     if (this.dialog) {
       this.updateDialog();
     } else {
@@ -575,7 +579,7 @@ var Game = Backbone.View.extend({
       var newtype = bubble.type,
           z = this.timeScale(bubble.date.getTime()) - this.options.accuracyOffset,
           kept = this.timeScale(bubble.date.getTime()) + .1 > 0;
-
+       
       if (z < 0 && z > -this.options.accuracyRange)
         newtype = 'cue-after-target';
       if (z > 0 && z < this.options.accuracyRange)
@@ -586,7 +590,7 @@ var Game = Backbone.View.extend({
           this.combo.push(0);
       }
 
-      if (newtype !== bubble.type) {
+      if (!bubble.beenHit && newtype !== bubble.type) {
         bubble.type = newtype;
         this.responses.push({
           cueId: bubble.id,
