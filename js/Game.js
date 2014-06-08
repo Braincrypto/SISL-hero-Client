@@ -46,8 +46,7 @@ var Game = Backbone.View.extend({
       'Your goal is to hit the correct key at the moment the bubble is in its target circle (marked underneath).<br/>' +
       'If you hit the right key at the right time, the bubble will pop.<br/>' +
       'If you miss or hit the wrong key, the target zone will flash red.<br/>' +
-      'Information about the game is displayed on the top corners,<br/>' +
-      'check the top left corner to know how much percent of the game remains<br/>' +
+      'Information about the game is displayed on the top corners.<br/>' +
       'Try to press ONE key per bubble! The game will know if you are ignoring bubbles or mashing buttons.<br/><br/>' +
       'Let\'s start with a small example.<br/>' +
       'Get ready by putting your fingers on the right keys!<br/>' +
