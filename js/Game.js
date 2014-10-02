@@ -368,6 +368,7 @@ var Game = Backbone.View.extend({
   attach: function () {
     this.onInterval = this.onInterval.bind(this);
     this.$document.on('keydown', this.onKeydown.bind(this));
+    this.$document.on('keyup', this.onKeyup.bind(this));
     this.$window.on('resize', this.onWindowResize.bind(this));
 
     this.$window.on('scroll touchmove', function (evt) { evt.preventDefault(); });
@@ -377,11 +378,24 @@ var Game = Backbone.View.extend({
   dettach: function () {
     this.onInterval = this.onInterval.bind(this);
     this.$document.off('keydown', this.onKeydown.bind(this));
+    this.$document.off('keyup', this.onKeyup.bind(this));
   },
   
   onWindowResize: function () {
     this.layout();
     this.renderStatic();
+  },
+
+  onKeyup: function (evt) {
+    // escape parameters
+    if (this.ended || evt.altKey || evt.ctrlKey || evt.metaKey)
+      return;
+    
+    var charCode = (evt.which) ? evt.which : evt.keyCode;
+    var validkey = (charCode === this.options.validKey);
+    if (!this.dialog) {
+        this.keyhitBubble(String.fromCharCode(charCode));
+    } 
   },
 
   onKeydown: function (evt) {
@@ -534,14 +548,31 @@ var Game = Backbone.View.extend({
     this.responses.push({
       cueId: bestBubble.id,
       eventTimestamp: this.date.getTime() - this.startDate.getTime(),
-      eventType: (bestBubble.beenHit ? 'press-hit' : 'press-key'),
+      eventType: (bestBubble.beenHit ? 'keydown-hit' : 'keydown-miss'),
       eventValue: keyNum + 1,
       eventDist: bestOffset,
       eventSpeed: this.speedFactor,
     });
-    
+
+    // storing variables for keyup event
+    this.bestBubbleId = bestBuble.id;
+    this.bestBubbleNum = keyNum + 1;
+    this.bestOffest = bestOffest;
+
     // give visual feeback
     this.feedback(keyNum, bestBubble.beenHit);
+  },
+
+  keyhitBubble: function (key) {
+    if (this.bestBubbleId)
+      this.responses.push({
+        cueId: bestBubbleId,
+        eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+        eventType: 'keyup',
+        eventValue: this.bestBubbleNum,
+        eventDist: this.bestDiff,
+        eventSpeed: this.speedFactor,
+      });
   },
 
   createBubble: function (evt, date) {
