@@ -557,7 +557,7 @@ var Game = Backbone.View.extend({
     // storing variables for keyup event
     this.bestBubbleId = bestBubble.id;
     this.bestBubbleNum = keyNum + 1;
-    this.bestOffest = bestOffset;
+    this.bestOffset = bestOffset;
 
     // give visual feeback
     this.feedback(keyNum, bestBubble.beenHit);
