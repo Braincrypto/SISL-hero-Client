@@ -492,7 +492,7 @@ var Game = Backbone.View.extend({
 
   refresh: function () {
     // update date
-    this.date = new Date();
+    this.refreshDate = new Date();
     // update number of events left
     this.trigger('percent', {percent: 100 - Math.round(this.options.events.length * 100 / this.options.totalevents)});
     if (this.dialog) {
@@ -547,7 +547,7 @@ var Game = Backbone.View.extend({
     // add response to buffer
     this.responses.push({
       cueId: bestBubble.id,
-      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventTimestamp: new Date().getTime() - this.startDate.getTime(),
       eventType: (bestBubble.beenHit ? 'keydown-hit' : 'keydown-miss'),
       eventValue: keyNum + 1,
       eventDist: bestOffset,
@@ -567,7 +567,7 @@ var Game = Backbone.View.extend({
     if (this.bestBubbleId)
       this.responses.push({
         cueId: this.bestBubbleId,
-        eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+        eventTimestamp: new Date().getTime() - this.startDate.getTime(),
         eventType: 'keyup',
         eventValue: this.bestBubbleNum,
         eventDist: this.bestOffset,
@@ -594,7 +594,7 @@ var Game = Backbone.View.extend({
     // push event appeared
     this.responses.push({
       cueId: newBubble.id,
-      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventTimestamp: this.refreshDate.getTime() - this.startDate.getTime(),
       eventType: newBubble.type,
       eventValue: newBubble.keyNumber + 1,
       eventDist: 0,
@@ -624,7 +624,7 @@ var Game = Backbone.View.extend({
         bubble.type = newtype;
         this.responses.push({
           cueId: bubble.id,
-          eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+          eventTimestamp: this.refreshDate.getTime() - this.startDate.getTime(),
           eventType: bubble.type,
           eventValue: bubble.keyNumber + 1,
           eventDist: 0,
@@ -640,7 +640,7 @@ var Game = Backbone.View.extend({
     this.options.adaptativeSpeed = (bool === true);
     this.responses.push({
       cueId: -1,
-      eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+      eventTimestamp: this.refreshDate.getTime() - this.startDate.getTime(),
       eventType: 'speedAdapt',
       eventValue: bool,
       eventDist: 0,
@@ -657,7 +657,7 @@ var Game = Backbone.View.extend({
       this.trigger('speed', {speed: this.speedFactor});
       this.responses.push({
         cueId: -1,
-        eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+        eventTimestamp: this.refreshDate.getTime() - this.startDate.getTime(),
         eventType: 'speedSet',
         eventValue: this.speedFactor,
         eventDist: 0,
@@ -689,7 +689,7 @@ var Game = Backbone.View.extend({
       if(speedChange) {
         this.responses.push({
           cueId: -1,
-          eventTimestamp: this.date.getTime() - this.startDate.getTime(),
+          eventTimestamp: this.refreshDate.getTime() - this.startDate.getTime(),
           eventType: 'speed-change',
           eventValue: speedChange,
           eventDist: 0,
@@ -714,7 +714,7 @@ var Game = Backbone.View.extend({
 
   updateTimeScale: function () {
     this.timeScale
-      .domain([this.date, new Date(this.date.getTime() + this.timeToShow)]);
+      .domain([this.refreshDate, new Date(this.refreshDate.getTime() + this.timeToShow)]);
   },
 
   // ################
@@ -798,7 +798,7 @@ var Game = Backbone.View.extend({
 
   feedback: function(numKey, answer) {
     var that = this;
-    this.feedbackDate = new Date(this.date.getTime() + 100);
+    this.feedbackDate = new Date(this.refreshDate.getTime() + 100);
     this.feedbackOn = true;
     this.feedbackKey = numKey;
     
