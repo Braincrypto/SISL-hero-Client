@@ -394,7 +394,7 @@ var Game = Backbone.View.extend({
     var charCode = (evt.which) ? evt.which : evt.keyCode;
     var validkey = (charCode === this.options.validKey);
     if (!this.dialog) {
-        this.keyhitBubble(String.fromCharCode(charCode));
+        this.keyupBubble(String.fromCharCode(charCode));
     } 
   },
 
@@ -555,18 +555,18 @@ var Game = Backbone.View.extend({
     });
 
     // storing variables for keyup event
-    this.bestBubbleId = bestBuble.id;
+    this.bestBubbleId = bestBubble.id;
     this.bestBubbleNum = keyNum + 1;
-    this.bestOffest = bestOffest;
+    this.bestOffest = bestOffset;
 
     // give visual feeback
     this.feedback(keyNum, bestBubble.beenHit);
   },
 
-  keyhitBubble: function (key) {
+  keyupBubble: function (key) {
     if (this.bestBubbleId)
       this.responses.push({
-        cueId: bestBubbleId,
+        cueId: this.bestBubbleId,
         eventTimestamp: this.date.getTime() - this.startDate.getTime(),
         eventType: 'keyup',
         eventValue: this.bestBubbleNum,
