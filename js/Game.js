@@ -570,7 +570,7 @@ var Game = Backbone.View.extend({
         eventTimestamp: this.date.getTime() - this.startDate.getTime(),
         eventType: 'keyup',
         eventValue: this.bestBubbleNum,
-        eventDist: this.bestDiff,
+        eventDist: this.bestOffset,
         eventSpeed: this.speedFactor,
       });
   },
