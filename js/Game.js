@@ -122,7 +122,7 @@ var Game = Backbone.View.extend({
   
   // runtime variables
   currentBubbles: [],
-  date: new Date(),
+  refreshDate: new Date(),
   speedFactor: 1,
   timeToShow: 6000, // 6 seconds
   
