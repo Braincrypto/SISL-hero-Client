@@ -562,7 +562,7 @@ var Game = Backbone.View.extend({
     this.lastBestOffset = bestOffset;
 
     // give visual feeback
-    this.feedback(keyNum, bestBubble.beenHit);
+    this.feedback(keyNum, hit);
   },
 
   keyupBubble: function (key) {
