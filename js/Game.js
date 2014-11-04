@@ -511,6 +511,7 @@ var Game = Backbone.View.extend({
     // interval has to be added because the timeScale is one interval late
     var current = this.options.accuracyOffset,
       bestBubble = false,
+      hit = false,
       offset,
       bestOffset,
       diff,
@@ -535,29 +536,30 @@ var Game = Backbone.View.extend({
       var score = Math.round(this.options.score * Math.sqrt(1 - (bestDiff/this.options.accuracyRange)));
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
+      hit = true;
       bestBubble.offset = bestOffset;
 
       this.bubbleEvent();
     }
     
     if (this.options.adaptativeSpeed)
-      this.combo.push(bestBubble.beenHit);
+      this.combo.push(hit);
 
     var keyNum = this.options.keys.indexOf(key);
     // add response to buffer
     this.responses.push({
       cueId: bestBubble.id,
       eventTimestamp: new Date().getTime() - this.startDate.getTime(),
-      eventType: (bestBubble.beenHit ? 'keydown-hit' : 'keydown-miss'),
+      eventType: (hit ? 'keydown-hit' : 'keydown-miss'),
       eventValue: keyNum + 1,
       eventDist: bestOffset,
       eventSpeed: this.speedFactor,
     });
 
     // storing variables for keyup event
-    this.bestBubbleId = bestBubble.id;
-    this.bestBubbleNum = keyNum + 1;
-    this.bestOffset = bestOffset;
+    this.lastBestBubbleId = bestBubble.id;
+    this.lastBestBubbleNum = keyNum + 1;
+    this.lastBestOffset = bestOffset;
 
     // give visual feeback
     this.feedback(keyNum, bestBubble.beenHit);
@@ -566,18 +568,18 @@ var Game = Backbone.View.extend({
   keyupBubble: function (key) {
     if (this.bestBubbleId)
       this.responses.push({
-        cueId: this.bestBubbleId,
+        cueId: this.lastBestBubbleId,
         eventTimestamp: new Date().getTime() - this.startDate.getTime(),
         eventType: 'keyup',
-        eventValue: this.bestBubbleNum,
-        eventDist: this.bestOffset,
+        eventValue: this.lastBestBubbleNum,
+        eventDist: this.lastBestOffset,
         eventSpeed: this.speedFactor,
       });
   },
 
   createBubble: function (evt, date) {
     // adjust speed
-    var speedChange = this.adjustSpeed();
+    this.adjustSpeed();
     var i = evt.value - 1;
     // create bubble
     var newBubble = {
