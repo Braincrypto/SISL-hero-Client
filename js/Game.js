@@ -13,20 +13,26 @@ var Game = Backbone.View.extend({
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666" />' +
-              '<stop offset="20%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
-              '<stop offset="80%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="20%" stop-color="#666" />' +
+              '<stop offset="40%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="60%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="80%" stop-color="#666" />' +
               '<stop offset="100%" stop-color="#666" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="<%= green %>"/>' +
-              '<stop offset="80%" stop-color="<%= green %>"/>' +
+              '<stop offset="20%" stop-color="#666"/>' +
+              '<stop offset="40%" stop-color="<%= green %>"/>' +
+              '<stop offset="60%" stop-color="<%= green %>"/>' +
+              '<stop offset="80%" stop-color="#666"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-bad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
-              '<stop offset="80%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
+              '<stop offset="20%" stop-color="#666"/>' +
+              '<stop offset="40%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
+              '<stop offset="60%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
+              '<stop offset="80%" stop-color="#666"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '</defs>' +
@@ -272,7 +278,9 @@ var Game = Backbone.View.extend({
 
     this.projectionScale = d3.scale.linear()
       .domain([0, 1.0])
-      .range([1.00, 1 + 1/this.options.infinityOffset]);
+      .range([1.00, 1 + 1. / this.options.infinityOffset]);
+
+    this.angle = Math.acos(1. / (this.options.infinityOffset + 1)) * 180. / Math.PI;
 
     if (this.options.bubbleColor.length === 0)
       this.options.bubbleColor = d3.scale.category10().range().slice(0, this.options.keys.length);
@@ -288,6 +296,14 @@ var Game = Backbone.View.extend({
       if (this.currentBubbles.length) {
         this.adjustBubbleDate();
         console.log("Time adjusted after paused");
+        this.responses.push({
+          cueId: -1,
+          eventTimestamp: new Date().getTime() - this.startDate.getTime(),
+          eventType: 'start',
+          eventValue: 0,
+          eventDist: 0,
+          eventSpeed: this.speedFactor,
+        });
       }
       this.interval = window.setInterval(this.onInterval, this.options.interval);
       this.removeText();
@@ -301,14 +317,25 @@ var Game = Backbone.View.extend({
       this.pausedTime = new Date();
     
       // pause by default
-      if(typeof(dialog) === 'undefined') 
+      if(typeof(dialog) === 'undefined') {
         this.dialog = {
           type: 'pause',
           time: 0,
           keys: [],
         }
-      else
+      } else {
         this.dialog = dialog;
+      }
+      
+      console.log(this.dialog.type);
+      this.responses.push({
+        cueId: -1,
+        eventTimestamp: new Date().getTime() - this.startDate.getTime(),
+        eventType: this.dialog.type,
+        eventValue: 0,
+        eventDist: 0,
+        eventSpeed: this.speedFactor,
+      });
     }
   },
   
@@ -339,9 +366,10 @@ var Game = Backbone.View.extend({
       this.dialog = false;
       this.startGame();
     } else {
-      if (this.dialog.time <= 0)
+      if (this.dialog.time <= 0) {
         window.clearInterval(this.interval);
-    
+      }
+
       this.displayText(this.dialogTemplate(content));
     }
   },
@@ -358,7 +386,7 @@ var Game = Backbone.View.extend({
 
   onInterval: function () {
     if(this.currentBubbles.length === 0 && this.options.events.length === 0 && !this.dialog) {
-      console.log('Eding game');
+      console.log('Ending game');
       this.endGame();
     } else {
       this.refresh();
@@ -908,12 +936,16 @@ var Game = Backbone.View.extend({
             node = d3.select(this);
 
           node.style({
-              'font-size': that.options.letterSize * r + 'px',
-              'width': r*2 + 'px',
-              'height': r*2 + 'px',
-              'background-color': d.color,
-              'opacity': 0,        
-            });
+            'font-size': that.options.letterSize * r + 'px',
+            'width': r*2 + 'px',
+            'height': r*2 + 'px',
+            'background-color': d.color,
+            'opacity': that.opacityScale(z),
+            'top': that.yScale(p) + 'px',
+            'left': that.xScale(c*p) + 'px',
+            'margin-top': -r + 'px',
+            'margin-left': -r + 'px',
+          });
           
           if (that.options.showLetters) {
             this.textContent = d.key;
@@ -922,6 +954,7 @@ var Game = Backbone.View.extend({
             });
           }
         })
+        .style('transform', 'rotateX( ' + this.angle + 'deg )')
         .append('span')
           .attr('class', 'shadow');
 
@@ -936,26 +969,27 @@ var Game = Backbone.View.extend({
           c,
           node = d3.select(this);
           
-          if (d.keyNumber < (that.options.keys.length / 2))
-            c = -1 + (d.keyNumber + 1) * division;
-          else
-            c = 1 - (that.options.keys.length - d.keyNumber) * division;
- 
-          node
-            .style({'z-index': that.zIndexScale(z),})
-            .transition()
-            .duration(opts.interval)
-            .ease('linear')
-            .style({
-              'font-size': that.options.letterSize * r + 'px',
-              'width': r*2 + 'px',
-              'height': r*2 + 'px',
-              'opacity': that.opacityScale(z),
-              'top': that.yScale(p) + 'px',
-              'left': that.xScale(c*p) + 'px',
-              'margin-top': -r*2 + 'px',
-              'margin-left': -r + 'px',
-            });
+        if (d.keyNumber < (that.options.keys.length / 2))
+          c = -1 + (d.keyNumber + 1) * division;
+        else
+          c = 1 - (that.options.keys.length - d.keyNumber) * division;
+
+        node
+          .style('z-index', that.zIndexScale(z))
+          .transition()
+          .duration(opts.interval)
+          .ease('linear')
+          .style({
+            'font-size': that.options.letterSize * r + 'px',
+            'width': r*2 + 'px',
+            'height': r*2 + 'px',
+            'opacity': that.opacityScale(z),
+            'top': that.yScale(p) + 'px',
+            'left': that.xScale(c*p) + 'px',
+            'margin-top': -r + 'px',
+            'margin-left': -r + 'px',
+            'transform': 'rotateX( ' + this.angle + 'deg )',
+          });
       });
 
     // Exit
@@ -971,6 +1005,11 @@ var Game = Backbone.View.extend({
       .classed('has-been-hit', function(d, i) {
         return d.beenHit;
       });
+
+    // remove rotation to enable disappear animation
+    hits = d3.select(this.el).selectAll('.has-been-hit');
+    hits
+      .style('transform', null);
   },
 
   // --------------------
@@ -992,6 +1031,7 @@ var Game = Backbone.View.extend({
       h = this.$el.height() || 518,
       s = Math.min(w, h);
 
+    // Setup scales according to screen
     this.xScale
       .range([0, w]);
 
@@ -1002,7 +1042,10 @@ var Game = Backbone.View.extend({
       .attr('width', w)
       .attr('height', h);
     
-    this.maxBubbleSize = w / (2*this.options.ratioBubble);
+    this.maxBubbleSize = h * this.options.ratioBubble;
+
+    // Setup perspective
+    this.perspective = Math.round(- h * Math.tan(this.angle));
   }, 
   
   renderGrass: function() {
@@ -1094,15 +1137,6 @@ var Game = Backbone.View.extend({
 
     // Update
     circles
-      .style({
-        'border-width': opts.circleSize + 'px',
-        'width': r*2 + 'px',
-        'height': r*2 + 'px',
-        'z-index': that.zIndexScale(z),
-        'top': that.yScale(p) + 'px',
-        'margin-top': -r*2 + 'px',
-        'margin-left': -r + 'px'
-      })
       .style('border-color', function (d) {
         return opts.bubbleColor[d];
       })
@@ -1113,9 +1147,19 @@ var Game = Backbone.View.extend({
             c = 1 - (opts.keys.length - d) * division;
         return that.xScale(c*p) + 'px';
       })
+      .style({
+        'transform': 'rotateX( ' + this.angle + 'deg )',
+        'border-width': opts.circleSize + 'px',
+        'width': r*2 + 'px',
+        'height': r*2 + 'px',
+        'z-index': that.zIndexScale(z),
+        'top': Math.round(that.yScale(p)) + 'px',
+        'margin-top': -r + 'px',
+        'margin-left': -r + 'px',
+      })
       .selectAll('.text')
         .style('font-size', function() {
-          return (r/5) + 'px';
+          return (r / 2.) + 'px';
         });
 
     // Exit

@@ -60,7 +60,7 @@ html,body {
   -webkit-overflow-scrolling: none;
 }
 .score-bar {
-  position: fixed;
+  position: absolute;
   top: 0px;
   left: 0px;
   right: 0px;
@@ -91,7 +91,7 @@ html,body {
 .controller-bar {
   background: @baseGray;
   z-index: 200;
-  position: fixed;
+  position: absolute;
   bottom: 0px;
   left: 0px;
   right: 0px;
@@ -125,7 +125,8 @@ body.has-controller-bar {
   }
 }
 .game {
-  position: fixed;
+  position: absolute;
+  perspective-origin: 50% 0;
   top: 0px;
   left: 0px;
   right: 0px;
@@ -180,16 +181,17 @@ body.has-controller-bar {
   text-align: center;
   font-weight: bold;
   color: white;
-  background: -webkit-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
-  background: -moz-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
-  background: -o-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
-  background: radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);
+  /*background: -webkit-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);*/
+  /*background: -moz-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);*/
+  /*background: -o-radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);*/
+  /*background: radial-gradient(50% 110%, circle cover, rgba(239, 239, 239, .3), rgba(239, 239, 239, .1) 50%, rgba(239, 239, 239, 0) 80%);*/
   &.has-been-hit {
     box-shadow: 0px 0px 16px white;
     .transform(rotateY(80deg),scale(0.2));
   }
 }
 
+/*
 .bubble:before {
   content: "";
   position: absolute;
@@ -206,6 +208,7 @@ body.has-controller-bar {
   -webkit-filter: blur(5px);
   z-index: 2;
 }
+*/
 
 .bubble .shadow {
   position: absolute;
@@ -240,7 +243,7 @@ body.has-controller-bar {
     text-align: center;
     font-weight: bold;
     font-size: 1em;
-    border: solid;
+    /*border: solid;*/
     .border-radius(50%);
     &.right {
       right: 0;
