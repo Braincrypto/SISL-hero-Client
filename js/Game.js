@@ -327,7 +327,6 @@ var Game = Backbone.View.extend({
         this.dialog = dialog;
       }
       
-      console.log(this.dialog.type);
       this.responses.push({
         cueId: -1,
         eventTimestamp: new Date().getTime() - this.startDate.getTime(),
