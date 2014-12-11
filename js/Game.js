@@ -708,10 +708,10 @@ var Game = Backbone.View.extend({
 
       this.combo = [];
 
-      if(ratio > this.options.speedUpTrigger)
+      if(ratio >= this.options.speedUpTrigger)
         speedChange = this.options.speedRatio;
 
-      if(ratio < this.options.speedDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
+      if(ratio <= this.options.speedDownTrigger && this.speedFactor > this.options.lowestSpeedFactor)
         speedChange = 1 / this.options.speedRatio;
       
       console.log('Speed change: ' + speedChange);
