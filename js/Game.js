@@ -13,26 +13,20 @@ var Game = Backbone.View.extend({
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666" />' +
-              '<stop offset="20%" stop-color="#666" />' +
               '<stop offset="40%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
               '<stop offset="60%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
-              '<stop offset="80%" stop-color="#666" />' +
               '<stop offset="100%" stop-color="#666" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="#666"/>' +
               '<stop offset="40%" stop-color="<%= green %>"/>' +
               '<stop offset="60%" stop-color="<%= green %>"/>' +
-              '<stop offset="80%" stop-color="#666"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-bad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666"/>' +
-              '<stop offset="20%" stop-color="#666"/>' +
               '<stop offset="40%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
               '<stop offset="60%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
-              '<stop offset="80%" stop-color="#666"/>' +
               '<stop offset="100%" stop-color="#666"/>' +
             '</linearGradient>' +
             '</defs>' +
@@ -169,7 +163,7 @@ var Game = Backbone.View.extend({
     circleSize: 5,
     goodColor: '#8dc63f',
     badColor: '#D00000',
-    ratioBubble: 10,
+    ratioBubble: 0.1,
 
     // - letter
     showLetters: false,
@@ -280,7 +274,8 @@ var Game = Backbone.View.extend({
       .domain([0, 1.0])
       .range([1.00, 1 + 1. / this.options.infinityOffset]);
 
-    this.angle = Math.acos(1. / (this.options.infinityOffset + 1)) * 180. / Math.PI;
+    this.angleRad = Math.acos(this.options.infinityOffset);
+    this.angleDeg = this.angleRad * 180. / Math.PI;
 
     if (this.options.bubbleColor.length === 0)
       this.options.bubbleColor = d3.scale.category10().range().slice(0, this.options.keys.length);
@@ -953,7 +948,7 @@ var Game = Backbone.View.extend({
             });
           }
         })
-        .style('transform', 'rotateX( ' + this.angle + 'deg )')
+        .style('transform', 'rotateX( ' + this.angleDeg + 'deg )')
         .append('span')
           .attr('class', 'shadow');
 
@@ -987,7 +982,7 @@ var Game = Backbone.View.extend({
             'left': that.xScale(c*p) + 'px',
             'margin-top': -r + 'px',
             'margin-left': -r + 'px',
-            'transform': 'rotateX( ' + this.angle + 'deg )',
+            'transform': 'rotateX( ' + this.angleDeg + 'deg )',
           });
       });
 
@@ -1041,10 +1036,11 @@ var Game = Backbone.View.extend({
       .attr('width', w)
       .attr('height', h);
     
-    this.maxBubbleSize = h * this.options.ratioBubble;
+    this.maxBubbleSize = h * this.options.ratioBubble * (1 / Math.cos(this.angleRad))
 
     // Setup perspective
-    this.perspective = Math.round(- h * Math.tan(this.angle));
+    this.perspective = Math.round(- h * Math.tan(this.angleDeg));
+    d3.select('.game').style({'perspective': this.perspective + 'px'});
   }, 
   
   renderGrass: function() {
@@ -1085,8 +1081,8 @@ var Game = Backbone.View.extend({
 
   renderTarget: function() {
     var
-      zfar = this.options.accuracyOffset + this.options.accuracyRange,
-      znear = this.options.accuracyOffset - this.options.accuracyRange,
+      zfar = this.options.accuracyOffset + this.options.accuracyRange - this.options.ratioBubble,
+      znear = this.options.accuracyOffset - this.options.accuracyRange + this.options.ratioBubble,
       far = 1 / this.projectionScale(zfar),
       near = 1 / this.projectionScale(znear),
       path = 'M ' + this.xScale(-1*far) + ',' + this.yScale(far) + ' ' +
@@ -1094,7 +1090,7 @@ var Game = Backbone.View.extend({
              'L ' + this.xScale( 1*near) + ',' + this.yScale(near) + ' ' +
              'L ' + this.xScale(-1*near) + ',' + this.yScale(near) + ' ' +
              'z';
- 
+
     d3.select(this.el).select('.target')
       .attr('d', path);
   },
@@ -1147,7 +1143,7 @@ var Game = Backbone.View.extend({
         return that.xScale(c*p) + 'px';
       })
       .style({
-        'transform': 'rotateX( ' + this.angle + 'deg )',
+        'transform': 'rotateX( ' + this.angleDeg + 'deg )',
         'border-width': opts.circleSize + 'px',
         'width': r*2 + 'px',
         'height': r*2 + 'px',
