@@ -13,8 +13,8 @@ var Game = Backbone.View.extend({
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad" x1="0" y1="0" x2="0" y2="100%">' +
               '<stop offset="0%" stop-color="#666" />' +
-              '<stop offset="40%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
-              '<stop offset="60%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="10%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="90%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
               '<stop offset="100%" stop-color="#666" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
@@ -265,7 +265,7 @@ var Game = Backbone.View.extend({
       .range([0.0, 1, 0.1, 0]);
 
     this.xScale = d3.scale.linear()
-      .domain([-1.1, 1.1]);
+      .domain([-0.9, 0.9]);
 
     this.yScale = d3.scale.linear()
       .domain([0, 1]);
@@ -555,6 +555,7 @@ var Game = Backbone.View.extend({
 
     // Update key if has been hit
     if (!bestBubble.beenHit && bestBubble.key === key && bestDiff <= this.options.accuracyRange) {
+      //console.log(bestDiff * this.timeToShow)
       var score = Math.round(this.options.score * Math.sqrt(1 - (bestDiff/this.options.accuracyRange)));
       this.trigger('score', {score: score, bubble: bestBubble});
       bestBubble.beenHit = true;
