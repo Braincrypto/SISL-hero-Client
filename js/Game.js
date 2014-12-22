@@ -12,22 +12,25 @@ var Game = Backbone.View.extend({
               '<stop offset="100%" stop-color="#666" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad" x1="0" y1="0" x2="0" y2="100%">' +
-              '<stop offset="0%" stop-color="#666" />' +
-              '<stop offset="10%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
-              '<stop offset="90%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
-              '<stop offset="100%" stop-color="#666" />' +
+              '<stop offset="0%" stop-color="#666" stop-opacity="0.05" />' +
+              '<stop offset="10%" stop-color="#8dc63f" stop-opacity="0.05"/>' +
+              '<stop offset="40%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="50%" stop-color="#8dc63f" stop-opacity="0.5"/>' +
+              '<stop offset="60%" stop-color="#8dc63f" stop-opacity="0.3"/>' +
+              '<stop offset="90%" stop-color="#8dc63f" stop-opacity="0.05"/>' +
+              '<stop offset="100%" stop-color="#666" stop-opacity="0.05" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-good" x1="0" y1="0" x2="0" y2="100%">' +
-              '<stop offset="0%" stop-color="#666"/>' +
+              '<stop offset="0%" stop-color="#666" stop-opacity="0.05" />' +
               '<stop offset="40%" stop-color="<%= green %>"/>' +
               '<stop offset="60%" stop-color="<%= green %>"/>' +
-              '<stop offset="100%" stop-color="#666"/>' +
+              '<stop offset="100%" stop-color="#666" stop-opacity="0.05" />' +
             '</linearGradient>' +
             '<linearGradient id="target-zone-grad-bad" x1="0" y1="0" x2="0" y2="100%">' +
-              '<stop offset="0%" stop-color="#666"/>' +
+              '<stop offset="0%" stop-color="#666" stop-opacity="0.05" />' +
               '<stop offset="40%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
               '<stop offset="60%" stop-color="<%= red %>" stop-opacity="0.3"/>' +
-              '<stop offset="100%" stop-color="#666"/>' +
+              '<stop offset="100%" stop-color="#666" stop-opacity="0.05" />' +
             '</linearGradient>' +
             '</defs>' +
           '<path class="grass" d="M 0,0 L 0,0 L 0,0, L 0,0 z" fill="url(#goal-timeline-grad)"/>' +
